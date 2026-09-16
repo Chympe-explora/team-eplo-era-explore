@@ -540,6 +540,7 @@
         return h("img", {
           key: src,
           src: src,
+          alt: props.alt || "Gallery photo",
           loading: i === safeIdx ? undefined : "lazy",
           decoding: "async",
           onError: function () { setFailed(function (f) { var n = {}; for (var k in f) n[k] = f[k]; n[src] = true; return n; }); },
@@ -613,7 +614,7 @@
     if (type === "gallery") {
       var imgs = (slot.images && slot.images.length ? slot.images : (slot.image ? [slot.image] : []));
       if (!imgs.length) return null;
-      return h(ImageSlider, { images: imgs });
+      return h(ImageSlider, { images: imgs, alt: slot.alt });
     }
     // A photo set via the Telegram admin bot can go stale (e.g. an
     // uploaded link expiring). Rather than leave a broken-image icon
@@ -1746,7 +1747,7 @@
         h(
           "div", { className: "flex items-center gap-3" },
           CONTENT.logoImage
-            ? h("img", { src: CONTENT.logoImage, className: "w-9 h-9 rounded-full object-cover border border-white/20" })
+            ? h("img", { src: CONTENT.logoImage, alt: CONTENT.siteName || "Logo", className: "w-9 h-9 rounded-full object-cover border border-white/20" })
             : h("div", { className: "w-9 h-9 rounded-full bg-[#2E8B57] flex items-center justify-center" }, h(Mountain, { size: 18 })),
           h(
             "div", { className: "leading-tight" },
@@ -1810,7 +1811,7 @@
             h("div", { className: "flex items-center justify-between" }, h("span", { className: "text-sm text-white/70 flex items-center gap-2" }, h(Clock, { size: 16 }), t("duration", " Duration")), h("span", { className: "text-sm font-medium" }, CONTENT.hero.duration)),
             h("div", { className: "h-px bg-white/10" }),
             h("div", { className: "flex items-center justify-between" }, h("span", { className: "text-sm text-white/70 flex items-center gap-2" }, h(IndianRupee, { size: 16 }), t("price", " Price")), h("span", { className: "text-sm font-medium" }, CONTENT.hero.priceLabel)),
-            h("div", { className: "mt-6 rounded-[16px] overflow-hidden border border-white/10" }, h("img", { src: CONTENT.sectionImages.heroCave, className: "w-full h-[180px] object-cover" }))
+            h("div", { className: "mt-6 rounded-[16px] overflow-hidden border border-white/10" }, h("img", { src: CONTENT.sectionImages.heroCave, alt: (CONTENT.siteName || "Destination") + " photo", className: "w-full h-[180px] object-cover" }))
           ),
           h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold" }, t("bookNow", "Book Now"))
         )
@@ -1819,7 +1820,7 @@
         GlassCard, { className: "px-6 py-4 flex flex-wrap items-center justify-between gap-4" },
         h(
           "div", { className: "flex items-center gap-3" },
-          h("div", { className: "flex -space-x-2" }, [0, 1, 2, 3].map(function (p) { return h("img", { key: p, src: "https://i.pravatar.cc/100?img=" + (10 + p), loading: "lazy", decoding: "async", className: "w-8 h-8 rounded-full border-2 border-black/30" }); })),
+          h("div", { className: "flex -space-x-2" }, [0, 1, 2, 3].map(function (p) { return h("img", { key: p, src: "https://i.pravatar.cc/100?img=" + (10 + p), alt: "", loading: "lazy", decoding: "async", className: "w-8 h-8 rounded-full border-2 border-black/30" }); })),
           h("div", { className: "text-[13px]" }, h("span", { className: "font-semibold" }, TRUST.trustedText), " ", h("span", { className: "text-white/60" }, TRUST.travelersText))
         ),
         h(
@@ -1932,7 +1933,7 @@
                   h("div", { className: "text-[13px] text-white/60 mt-1" }, highlight.description)
                 )
               ),
-              highlight.imagesEnabled !== false && h(ImageSlider, { images: highlight.images || [] })
+              highlight.imagesEnabled !== false && h(ImageSlider, { images: highlight.images || [], alt: highlight.label })
             );
           })
         )
@@ -2003,7 +2004,7 @@
       ),
       SECTIONS.meetGuide && h(
         GlassCard, { className: "p-6 md:p-8 flex flex-col sm:flex-row gap-5 items-center" },
-        h("img", { src: CONTENT.guide.image, loading: "lazy", decoding: "async", className: "w-20 h-20 rounded-full object-cover border border-white/20 flex-shrink-0" }),
+        h("img", { src: CONTENT.guide.image, alt: CONTENT.guide.name ? CONTENT.guide.name + ", your guide" : "Your guide", loading: "lazy", decoding: "async", className: "w-20 h-20 rounded-full object-cover border border-white/20 flex-shrink-0" }),
         h(
           "div", { className: "text-center sm:text-left" },
           h("div", { className: "font-semibold text-lg" }, t("meetYourGuide", "Meet Your Guide")),
@@ -2027,7 +2028,7 @@
               className: p.span + " rounded-[16px] overflow-hidden border border-white/10 relative group cursor-pointer",
               onClick: function () { toggleLightbox(p.src); }
             },
-            h("img", { src: p.src, loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-110 transition duration-700" }),
+            h("img", { src: p.src, alt: p.cat || "Gallery photo", loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-110 transition duration-700" }),
             h("div", { className: "absolute inset-0 bg-black/10 group-hover:bg-black/0 transition" }),
             h("div", { className: "absolute bottom-2 left-2 px-2 py-1 rounded-full bg-black/50 backdrop-blur text-[10px] border border-white/10" }, p.cat)
           );
@@ -2104,7 +2105,7 @@
       GlassCard, { className: "overflow-hidden group" },
       h(
         "div", { className: "relative h-[220px] overflow-hidden" },
-        h("img", { src: CONTENT.sectionImages.sharedPackageCard, loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-105 transition duration-700" }),
+        h("img", { src: CONTENT.sectionImages.sharedPackageCard, alt: (PKG.sharedTour && PKG.sharedTour.name) || "Shared package photo", loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-105 transition duration-700" }),
         h("div", { className: "absolute top-4 left-4 px-3 py-1 rounded-full bg-black/40 backdrop-blur text-xs border border-white/10" }, PKG.sharedTour.badge),
         h("div", { className: "absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/70 to-transparent" })
       ),
@@ -2131,7 +2132,7 @@
       GlassCard, { className: "overflow-hidden group" },
       h(
         "div", { className: "relative h-[220px] overflow-hidden" },
-        h("img", { src: CONTENT.sectionImages.privatePackageCard, loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-105 transition duration-700" }),
+        h("img", { src: CONTENT.sectionImages.privatePackageCard, alt: (PKG.privatePackage && PKG.privatePackage.name) || "Private package photo", loading: "lazy", decoding: "async", className: "w-full h-full object-cover group-hover:scale-105 transition duration-700" }),
         h("div", { className: "absolute top-4 left-4 px-3 py-1 rounded-full bg-black/40 backdrop-blur text-xs border border-white/10" }, PKG.privatePackage.badge),
         h("div", { className: "absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/70 to-transparent" })
       ),
@@ -2432,7 +2433,7 @@
                 h(
                   "div", { className: "relative text-center" },
                   window.KC_IMAGES.qrCode
-                    ? h("img", { src: window.KC_IMAGES.qrCode, loading: "lazy", decoding: "async", className: "w-full h-full max-w-[280px] max-h-[280px] mx-auto object-contain rounded-[8px]" })
+                    ? h("img", { src: window.KC_IMAGES.qrCode, alt: "Payment QR code", loading: "lazy", decoding: "async", className: "w-full h-full max-w-[280px] max-h-[280px] mx-auto object-contain rounded-[8px]" })
                     : h("div", { className: "w-40 h-40 mx-auto bg-black text-white flex items-center justify-center text-[10px] font-mono p-2" }, "UPI QR", h("br"), CONTENT.upiId, h("br"), money(grandTotal)),
                   h("div", { className: "mt-3 text-black text-xs font-semibold" }, t("scanToPayLabel", "Scan to Pay ₹"), grandTotal)
                 )
@@ -2800,6 +2801,7 @@
       h("div", { className: "absolute inset-0 bg-black/85 backdrop-blur-sm" }),
       h("img", {
         src: lightboxImage || "",
+        alt: "Enlarged photo",
         onClick: function (e) { e.stopPropagation(); setLightboxImage(null); },
         className: "relative max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-all duration-300 ease-out cursor-pointer " + (lightboxImage ? "scale-100 opacity-100" : "scale-75 opacity-0")
       })
@@ -2814,7 +2816,7 @@
       // case that script failed to load — same look as before.
       !window.KCBackgrounds && h(
         "div", { className: "fixed inset-0 -z-10" },
-        h("img", { src: CONTENT.backgrounds[0], className: "w-full h-full object-cover" }),
+        h("img", { src: CONTENT.backgrounds[0], alt: "", className: "w-full h-full object-cover" }),
         h("div", { className: "absolute inset-0 bg-black/40 backdrop-blur-[1px]" }),
         h("div", { className: "absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" })
       ),
