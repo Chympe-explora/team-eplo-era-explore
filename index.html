@@ -4,6 +4,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Krem Chympe — Adventure &amp; Camping</title>
+  <meta name="description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- Open Graph / social share preview (WhatsApp, Facebook, etc.) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Krem Chympe — Adventure &amp; Camping">
+  <meta property="og:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <meta property="og:image" content="og-image.jpg">
+  <meta property="og:url" content="https://team-eplo-era-explore.pages.dev/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Krem Chympe — Adventure &amp; Camping">
+  <meta name="twitter:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <meta name="twitter:image" content="og-image.jpg">
+
+  <!-- Resource hints for the two destination sites this page links to
+       (see config.js destinations.items[].link/navOptions). Since this
+       page's whole job is to send visitors on to krem-chympe/ or
+       wilderness-expedition/, we get a head start on THAT page's load
+       while the visitor is still reading this one: preconnect opens the
+       DNS+TLS connection to the shared CDN/backend origins early, and
+       prefetch pulls each destination's two biggest files (config.js,
+       app.js) into the browser's cache at idle/low priority. Neither
+       one blocks or slows down this page — by the time a visitor taps
+       a destination card, its core files are often already sitting in
+       cache instead of starting from zero. -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://teamexploera-backend.book-and-explore.workers.dev">
+  <link rel="prefetch" href="krem-chympe/config.js">
+  <link rel="prefetch" href="krem-chympe/app.js">
+  <link rel="prefetch" href="wilderness-expedition/config.js">
+  <link rel="prefetch" href="wilderness-expedition/app.js">
 
   <!--
     ⚠️  ALL PRICES, PHOTOS, AND TEXT LIVE IN config.js NOW — not in this
@@ -66,8 +99,8 @@
 <body>
   <div id="root"></div>
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" defer></script>
   <!-- ERA AI: floating chat assistant bubble. Managed from the Telegram
        admin bot's "🤖 ERA AI" menu, including the Stop Learning toggle. -->
   <script src="era-ai-widget.js" defer></script>

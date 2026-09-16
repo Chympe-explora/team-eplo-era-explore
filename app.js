@@ -158,7 +158,7 @@
         "div",
         { className: "absolute inset-0 flex h-full w-full transition-transform duration-500 ease-out", style: { transform: "translateX(-" + safeIdx * 100 + "%)" } },
         images.map(function (src, i) {
-          return h("img", { key: i, src: src, loading: i === 0 ? undefined : "lazy", decoding: "async", className: "w-full h-full object-cover flex-shrink-0", style: { minWidth: "100%" } });
+          return h("img", { key: i, src: src, alt: props.alt || "Photo", loading: i === 0 ? undefined : "lazy", decoding: "async", className: "w-full h-full object-cover flex-shrink-0", style: { minWidth: "100%" } });
         })
       ),
       h(
@@ -871,7 +871,7 @@ function closeNotice() {
         h(
           "div", { className: "flex items-center gap-3 cursor-pointer", onClick: function () { goTo("home"); } },
           CONTENT.logoImage
-            ? h("img", { src: CONTENT.logoImage, className: "w-9 h-9 rounded-full object-cover border border-white/20" })
+            ? h("img", { src: CONTENT.logoImage, alt: CONTENT.siteName || "Logo", className: "w-9 h-9 rounded-full object-cover border border-white/20" })
             : h("div", { className: "w-9 h-9 rounded-full bg-[#2E8B57] flex items-center justify-center" }, h(Mountain, { size: 18 })),
           h(
             "div", { className: "leading-tight" },
@@ -933,7 +933,7 @@ function closeNotice() {
         GlassCard, { className: "px-6 py-4 flex flex-wrap items-center justify-between gap-4" },
         h(
           "div", { className: "flex items-center gap-3" },
-          h("div", { className: "flex -space-x-2" }, [0, 1, 2, 3].map(function (p) { return h("img", { key: p, src: "https://i.pravatar.cc/100?img=" + (10 + p), loading: "lazy", decoding: "async", className: "w-8 h-8 rounded-full border-2 border-black/30" }); })),
+          h("div", { className: "flex -space-x-2" }, [0, 1, 2, 3].map(function (p) { return h("img", { key: p, src: "https://i.pravatar.cc/100?img=" + (10 + p), alt: "", loading: "lazy", decoding: "async", className: "w-8 h-8 rounded-full border-2 border-black/30" }); })),
           h("div", { className: "text-[13px]" }, h("span", { className: "font-semibold" }, RATING.trustedText), " ", h("span", { className: "text-white/60" }, RATING.travelersText))
         ),
         h(
@@ -960,7 +960,7 @@ function closeNotice() {
         (DEST.items || []).map(function (d) {
           return h(
             GlassCard, { key: d.id, id: "dest-" + d.id, className: "overflow-hidden flex flex-col relative" },
-            d.image && h("img", { src: d.image, loading: "lazy", decoding: "async", className: "w-full h-[220px] object-cover" }),
+            d.image && h("img", { src: d.image, alt: d.name || "Destination photo", loading: "lazy", decoding: "async", className: "w-full h-[220px] object-cover" }),
             h(
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
@@ -1253,7 +1253,7 @@ function closeNotice() {
       // case that script failed to load — same look as before.
       !window.KCBackgrounds && h(
         "div", { className: "fixed inset-0 -z-10" },
-        h("img", { src: CONTENT.backgroundImage, className: "w-full h-full object-cover" }),
+        h("img", { src: CONTENT.backgroundImage, alt: "", className: "w-full h-full object-cover" }),
         h("div", { className: "absolute inset-0 bg-black/40 backdrop-blur-[1px]" }),
         h("div", { className: "absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" })
       ),
