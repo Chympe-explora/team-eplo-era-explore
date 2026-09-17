@@ -23,20 +23,50 @@
        (see config.js destinations.items[].link/navOptions). Since this
        page's whole job is to send visitors on to krem-chympe/ or
        wilderness-expedition/, we get a head start on THAT page's load
-       while the visitor is still reading this one: preconnect opens the
-       DNS+TLS connection to the shared CDN/backend origins early, and
-       prefetch pulls each destination's two biggest files (config.js,
-       app.js) into the browser's cache at idle/low priority. Neither
-       one blocks or slows down this page — by the time a visitor taps
-       a destination card, its core files are often already sitting in
-       cache instead of starting from zero. -->
+       while the visitor is still reading this one. Split into two
+       tiers, because not everything is equally cheap to start this
+       early:
+
+       1) config.js + styles.css for both destinations are small
+          (tens of KB each) — cheap enough to start downloading RIGHT
+          NOW, genuinely alongside this page's own scripts, not queued
+          behind them. Cloudflare Pages serves over HTTP/2, so this
+          rides the same multiplexed connection as everything else on
+          this page rather than needing its own — it doesn't steal a
+          connection slot from anything this page needs.
+       2) Each destination's app.js is bigger (150–170KB) — big enough
+          that starting it THIS early would compete for real bandwidth
+          with this page's own React/app.js/hero-video and could slow
+          this page's own first paint down, which defeats the point.
+          It's fetched instead right after this page finishes loading
+          (see the requestIdleCallback warmup in app.js) — still well
+          before a visitor has tapped anything, just not competing with
+          this page's own critical path.
+
+       (krem-chympe/logo.png is deliberately left out of both — it's
+       ~1.9MB, unusually large for a logo file, and worth compressing
+       at the source rather than eagerly downloading as-is.) -->
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://cdn.tailwindcss.com">
   <link rel="preconnect" href="https://teamexploera-backend.book-and-explore.workers.dev">
-  <link rel="prefetch" href="krem-chympe/config.js">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script>
+    ["krem-chympe/config.js", "krem-chympe/styles.css",
+     "wilderness-expedition/config.js", "wilderness-expedition/styles.css"
+    ].forEach(function (u) { try { fetch(u).catch(function () {}); } catch (e) {} });
+  </script>
   <link rel="prefetch" href="krem-chympe/app.js">
-  <link rel="prefetch" href="wilderness-expedition/config.js">
   <link rel="prefetch" href="wilderness-expedition/app.js">
+  <link rel="prefetch" href="wilderness-expedition/logo.png">
+
+
+  <!-- This page's OWN critical assets, given high priority so the boot
+       loader's visible time (below) is spent actually fetching what the
+       home page needs — not idled away — and the page is fully painted,
+       not still popping in images, the moment the loader fades. -->
+  <link rel="preload" as="image" href="logo.png">
+  <link rel="preload" as="video" href="hero-video.mp4">
 
   <!--
     ⚠️  ALL PRICES, PHOTOS, AND TEXT LIVE IN config.js NOW — not in this
