@@ -78,15 +78,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Branded loading screen, shown before React has rendered anything.
-       App() hides it (fades out via .kc-boot-hide, then removes it)
-       the moment the first real render happens. Lives outside #root
-       so it's visible even before app.js has finished loading. -->
-  <div id="kc-boot-loader">
-    <img src="logo.png" alt="">
-    <div class="kc-boot-name">Wilderness Expedition</div>
-    <div class="kc-boot-dots"><span></span><span></span><span></span></div>
-  </div>
   <div id="root"></div>
 
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
