@@ -78,11 +78,14 @@
   // Shared little components
   // ---------------------------------------------------------------------
   function GlassCard(props) {
-    return h(
-      "div",
-      { className: "kc-glass-3d backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] " + (props.className || "") },
-      props.children
-    );
+    var domProps = { className: "kc-glass-3d backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] " + (props.className || "") };
+    // Forward anything else (id, onMouseEnter, onTouchStart, etc.) as-is
+    // so a caller can e.g. start warming up a link's target the moment
+    // a finger/cursor lands on the card, without a second wrapper div.
+    for (var k in props) {
+      if (k !== "className" && k !== "children") domProps[k] = props[k];
+    }
+    return h("div", domProps, props.children);
   }
 
   // ImageSlot / MediaSlot — one optional media spot placed anywhere in
@@ -736,6 +739,16 @@
     function handleClick(e) {
       if (active) return; // ignore repeat taps mid-flip
       targetRef.current = e.currentTarget; // DOM node, for callers like toggleDestMenu that need it
+      // instant: skip the flip-wait entirely and fire onDone on this
+      // same tap. Used for buttons whose job is to open a menu or hand
+      // off to somewhere else (destination "Explore" button, nav
+      // popover options) — there the 380ms+500ms flip delay chain only
+      // added a false wait before the menu/link ever appeared, which is
+      // what made these feel like they needed several taps to work.
+      if (props.instant) {
+        if (props.onDone) props.onDone(targetRef.current);
+        return;
+      }
       setActive(true);
       setTimeout(function () {
         if (props.onDone) props.onDone(targetRef.current);
@@ -761,14 +774,36 @@
   }
 
   function App() {
-    // Hide the branded boot-loading screen (see index.html) the moment
-    // this component's first real render has committed to the DOM —
-    // fade it out, then remove it outright so it can't intercept taps.
+    // Hide the branded boot-loading screen (see index.html). By the time
+    // this effect runs, the home page has already rendered underneath it
+    // — this loader is purely a cosmetic mask on top of an already-ready
+    // page. On a normal connection we deliberately hold that mask up for
+    // 3.5s and spend the whole window warming up both destination sites
+    // in full (not just their files — see warmupDestination), so by the
+    // time the visitor actually sees the home page, both destinations
+    // are already close to ready to tap into. On Data Saver / a 2G-class
+    // connection we skip the hold entirely and reveal immediately —
+    // those visitors get nothing out of the wait (see note below) and
+    // holding them on a loading screen for no payoff is a pure cost.
     useEffect(function () {
       var loader = document.getElementById("kc-boot-loader");
-      if (!loader) return;
-      loader.classList.add("kc-boot-hide");
-      setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
+      function hideLoader() {
+        if (!loader) return;
+        loader.classList.add("kc-boot-hide");
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
+      }
+
+      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      var slowConn = conn && (conn.saveData || /2g/.test(conn.effectiveType || ""));
+
+      if (slowConn) {
+        hideLoader();
+        return;
+      }
+
+      setTimeout(hideLoader, 3500);
+      var items = (CONTENT.destinations && CONTENT.destinations.items) || [];
+      items.forEach(function (d) { warmupDestination(d); });
     }, []);
 
     var menuState = useState(false); var mobileMenuOpen = menuState[0], setMobileMenuOpen = menuState[1];
@@ -993,6 +1028,31 @@ function closeNotice() {
     );
 
     // ---- Destinations -------------------------------------------------
+    // Fires the moment a visitor's finger/cursor lands on a destination
+    // card — well before the ~380ms it then takes them to actually tap
+    // the button. Requests these with priority:"high" (vs. the low-
+    // priority idle <link rel="prefetch"> in index.html, which has to
+    // guess at both destinations at once) so by the time the tap lands,
+    // THIS destination's core files are typically already in cache.
+    // Harmless to fire more than once — the browser dedupes/serves from
+    // cache on repeat calls for the same URL.
+    function warmupDestination(d) {
+      if (!d || !d.link || d._warmed) return;
+      d._warmed = true;
+      var base = d.link.replace(/[^/]*$/, ""); // strip "index.html" (and any ?query)
+      ["config.js", "app.js", "styles.css"].forEach(function (f) {
+        try { fetch(base + f, { priority: "high" }).catch(function () {}); } catch (e) {}
+      });
+      if (window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) {
+        try {
+          var s = document.createElement("script");
+          s.type = "speculationrules";
+          s.textContent = JSON.stringify({ prerender: [{ source: "list", urls: [d.link] }] });
+          document.body.appendChild(s);
+        } catch (e) {}
+      }
+    }
+
     var DEST = CONTENT.destinations || { title: "Destinations", subtitle: "", items: [] };
     var destinations = h(
       "section", { id: "destinations", className: "scroll-mt-24 relative" },
@@ -1006,13 +1066,18 @@ function closeNotice() {
         "div", { className: "grid md:grid-cols-2 gap-6" },
         (DEST.items || []).map(function (d) {
           return h(
-            GlassCard, { key: d.id, id: "dest-" + d.id, className: "overflow-hidden flex flex-col relative" },
+            GlassCard, {
+              key: d.id, id: "dest-" + d.id, className: "overflow-hidden flex flex-col relative",
+              onMouseEnter: function () { warmupDestination(d); },
+              onTouchStart: function () { warmupDestination(d); }
+            },
             d.image && h("img", { src: d.image, alt: d.name || "Destination photo", loading: "lazy", decoding: "async", className: "w-full h-[220px] object-cover" }),
             h(
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
               h("p", { className: "mt-3 text-white/70 text-sm leading-relaxed flex-1" }, d.description),
               h(FlipButton, {
+                instant: true,
                 idleLabel: d.buttonLabel || "Explore Destination",
                 activeLabel: activeLabelFor(d.buttonLabel || "Explore Destination"),
                 onDone: function (targetEl) {
@@ -1057,11 +1122,12 @@ function closeNotice() {
               {
                 onClick: function (e) { e.stopPropagation(); },
                 style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px" },
-                className: "kc-dest-popover rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
+                className: "kc-dest-popover text-white rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
               },
               d.navOptions.map(function (opt, i) {
                 return h(FlipButton, {
                   key: i,
+                  instant: true,
                   idleLabel: opt.label,
                   activeLabel: activeLabelFor(opt.label),
                   onDone: function () { window.location.href = opt.url; },
