@@ -80,7 +80,7 @@
   function GlassCard(props) {
     return h(
       "div",
-      { className: "backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
+      { className: "kc-glass-3d backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] " + (props.className || "") },
       props.children
     );
   }
@@ -398,7 +398,7 @@
               className: "w-full text-left px-4 py-3 rounded-xl text-white bg-white/5 hover:bg-white/15 transition"
             }, item.label);
           }),
-          h("button", { onClick: props.onBookNow, className: "w-full bg-[#2E8B57] hover:bg-[#257a4b] text-white py-3 rounded-full font-medium mt-1 transition" }, bookNowLabel)
+          h(FlipButton, { idleLabel: bookNowLabel, activeLabel: activeLabelFor(bookNowLabel), onDone: props.onBookNow, className: "w-full bg-[#2E8B57] hover:bg-[#257a4b] text-white py-3 rounded-full font-medium mt-1 transition" })
         ),
 
         // ---- quote + Explore/Book Now ----
@@ -414,14 +414,12 @@
               "— " + hero.quote.split("—").slice(1).join("—").trim()
             )
           ),
-          h(
-            "button",
-            {
-              onClick: props.onBookNow,
-              className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
-            },
-            bookNowLabel
-          )
+          h(FlipButton, {
+            idleLabel: bookNowLabel,
+            activeLabel: activeLabelFor(bookNowLabel),
+            onDone: props.onBookNow,
+            className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
+          })
         ),
 
         // ---- Discover, bottom of hero — scrolls to destinations ----
@@ -580,7 +578,6 @@
 
     var average = ratingsData ? ratingsData.average : 0;
     var count = ratingsData ? ratingsData.count : 0;
-    var breakdown = (ratingsData && ratingsData.breakdown) || {};
     var reviews = (ratingsData && ratingsData.ratings) || [];
 
     return h(
@@ -593,25 +590,12 @@
       ),
 
       h(
-        GlassCard, { className: "p-4 grid md:grid-cols-[auto_1fr] gap-4 items-center" },
+        GlassCard, { className: "p-4 flex justify-center" },
         h(
-          "div", { className: "text-center md:border-r md:border-white/10 md:pr-6" },
+          "div", { className: "text-center" },
           h("div", { className: "text-2xl font-bold" }, average || "\u2013"),
           h(Stars, { value: average, size: 13 }),
           h("div", { className: "text-white/60 text-xs mt-0.5" }, count + (count === 1 ? " rating" : " ratings"))
-        ),
-        h(
-          "div", { className: "space-y-1.5 w-full" },
-          [5, 4, 3, 2, 1].map(function (star) {
-            var n = breakdown[star] || 0;
-            var pct = count ? Math.round((n / count) * 100) : 0;
-            return h(
-              "div", { key: star, className: "flex items-center gap-2 text-xs" },
-              h("span", { className: "w-7 text-white/60" }, star + "\u2605"),
-              h("div", { className: "flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden" }, h("div", { className: "h-full bg-amber-400 rounded-full", style: { width: pct + "%" } })),
-              h("span", { className: "w-6 text-white/40 text-right" }, n)
-            );
-          })
         )
       ),
 
@@ -629,7 +613,7 @@
       ),
 
       (rateFormOpen || justSubmitted) && h(
-        GlassCard, { className: "p-4 md:p-5 max-w-[560px] mx-auto" },
+        GlassCard, { className: "p-4 md:p-5 max-w-[560px] mx-auto kc-expand-in" },
         justSubmitted
           ? h(
               "div", { className: "text-center py-2" },
@@ -698,7 +682,7 @@
         ),
         commentsOpen && h(
           "div", { className: "grid md:grid-cols-2 gap-4" },
-          reviews.slice(0, 6).map(function (r) {
+          reviews.map(function (r) {
             return h(
               GlassCard, { key: r.id, className: "p-5" },
               h(
@@ -723,7 +707,70 @@
     return [];
   }
 
+  // Turns an idle button label into its "in progress" phrase —
+  // handles the specific words this site actually uses ("Book Now",
+  // "Explore"/"Explore Destination(s)", "Submit") and falls back to a
+  // generic "<label>ing..." for any custom text an admin might set.
+  function activeLabelFor(idle) {
+    var t = (idle || "").trim();
+    var lower = t.toLowerCase();
+    if (lower === "book now") return "Booking...";
+    if (lower === "explore" || lower === "explore destination" || lower === "explore destinations") return "Exploring...";
+    if (lower === "submit" || lower === "submit booking") return "Submitting...";
+    if (/^[a-z]+e$/i.test(t)) return t.slice(0, -1) + "ing...";
+    if (/^[a-z]+$/i.test(t)) return t + "ing...";
+    return t + " …";
+  }
+
+  // FlipButton — a button whose label "flips" to a busy/active phrase
+  // the moment it's tapped ("Book Now" -> "Booking...", "Explore" ->
+  // "Exploring...") and only THEN performs the real action (onDone),
+  // after the flip animation has had a moment to play. The label span
+  // below is re-keyed by its own text, so React unmounts/remounts it
+  // on every change — that's what triggers the .kc-swap-text CSS
+  // animation in styles.css, no manual animation timing needed here.
+  function FlipButton(props) {
+    var activeState = useState(false); var active = activeState[0], setActive = activeState[1];
+    var targetRef = useRef(null);
+    var label = active ? props.activeLabel : props.idleLabel;
+    function handleClick(e) {
+      if (active) return; // ignore repeat taps mid-flip
+      targetRef.current = e.currentTarget; // DOM node, for callers like toggleDestMenu that need it
+      setActive(true);
+      setTimeout(function () {
+        if (props.onDone) props.onDone(targetRef.current);
+        // Reset a beat later so the button is tappable again for
+        // actions that don't navigate away (e.g. a same-page scroll).
+        setTimeout(function () { setActive(false); }, 500);
+      }, 380);
+    }
+    return h(
+      "button",
+      { onClick: handleClick, className: "kc-flip-btn" + (active ? " kc-flip-btn-active" : "") + " " + props.className },
+      h(
+        "span", { className: "kc-flip-inner" },
+        h(
+          "span", { className: "kc-flip-knob" },
+          h("svg", { className: "kc-knob-idle", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M5 12h14" }), h("path", { d: "m12 5 7 7-7 7" })),
+          h("svg", { className: "kc-knob-active", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M20 6 9 17l-5-5" }))
+        ),
+        h("span", { key: label, className: "kc-swap-text" }, label),
+        props.children
+      )
+    );
+  }
+
   function App() {
+    // Hide the branded boot-loading screen (see index.html) the moment
+    // this component's first real render has committed to the DOM —
+    // fade it out, then remove it outright so it can't intercept taps.
+    useEffect(function () {
+      var loader = document.getElementById("kc-boot-loader");
+      if (!loader) return;
+      loader.classList.add("kc-boot-hide");
+      setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
+    }, []);
+
     var menuState = useState(false); var mobileMenuOpen = menuState[0], setMobileMenuOpen = menuState[1];
 
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
@@ -891,7 +938,7 @@ function closeNotice() {
         ),
         h(
           "div", { className: "flex items-center gap-2" },
-          h("button", { onClick: function () { navigateTo(HEADER_CTA); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }, HEADER_CTA.label || "Book Now"),
+          h(FlipButton, { idleLabel: HEADER_CTA.label || "Book Now", activeLabel: activeLabelFor(HEADER_CTA.label || "Book Now"), onDone: function () { navigateTo(HEADER_CTA); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }),
           h("button", { onClick: function () { setMobileMenuOpen(!mobileMenuOpen); }, className: "md:hidden w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center" }, mobileMenuOpen ? h(X, { size: 18 }) : h(Menu, { size: 18 }))
         )
       ),
@@ -904,7 +951,7 @@ function closeNotice() {
             className: "w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10"
           }, item.label);
         }),
-        h("button", { onClick: function () { navigateTo(HEADER_CTA); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" }, HEADER_CTA.label || "Book Now")
+        h(FlipButton, { idleLabel: HEADER_CTA.label || "Book Now", activeLabel: activeLabelFor(HEADER_CTA.label || "Book Now"), onDone: function () { navigateTo(HEADER_CTA); setMobileMenuOpen(false); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" })
       )
     );
 
@@ -920,7 +967,7 @@ function closeNotice() {
         h("p", { className: "mt-5 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, HERO.sub),
         h(
           "div", { className: "mt-8 flex flex-wrap gap-3" },
-          h("button", { onClick: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Explore Destinations ", h(ArrowRight, { size: 16 }))
+          h(FlipButton, { idleLabel: "Explore Destinations", activeLabel: "Exploring...", onDone: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" })
         )
       )
     );
@@ -951,7 +998,7 @@ function closeNotice() {
       "section", { id: "destinations", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "destinations" }),
       h(
-        "div", { className: "mb-4 md:mb-6" },
+        GlassCard, { className: "mb-4 md:mb-6 p-5 md:p-6" },
         h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight" }, DEST.title),
         DEST.subtitle && h("p", { className: "mt-1 text-white/60 text-sm" }, DEST.subtitle)
       ),
@@ -965,22 +1012,20 @@ function closeNotice() {
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
               h("p", { className: "mt-3 text-white/70 text-sm leading-relaxed flex-1" }, d.description),
-              h(
-                "button",
-                {
-                  onClick: function (e) {
-                    if (d.navOptions && d.navOptions.length) {
-                      toggleDestMenu(d.id, e.currentTarget);
-                    } else if (d.link) {
-                      window.location.href = d.link;
-                    } else {
-                      goTo("booking");
-                    }
-                  },
-                  className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold"
+              h(FlipButton, {
+                idleLabel: d.buttonLabel || "Explore Destination",
+                activeLabel: activeLabelFor(d.buttonLabel || "Explore Destination"),
+                onDone: function (targetEl) {
+                  if (d.navOptions && d.navOptions.length) {
+                    toggleDestMenu(d.id, targetEl);
+                  } else if (d.link) {
+                    window.location.href = d.link;
+                  } else {
+                    goTo("booking");
+                  }
                 },
-                d.buttonLabel || "Explore Destination"
-              )
+                className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold"
+              })
             )
           );
         })
@@ -1002,19 +1047,17 @@ function closeNotice() {
             "div",
             {
               onClick: function (e) { e.stopPropagation(); },
-              style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px", transform: "translateY(-100%) translateY(-8px)" },
-              className: "rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
+              style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px" },
+              className: "kc-dest-popover rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
             },
             d.navOptions.map(function (opt, i) {
-              return h(
-                "button",
-                {
-                  key: i,
-                  onClick: function () { window.location.href = opt.url; },
-                  className: "w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition" + (i > 0 ? " border-t border-white/10" : "")
-                },
-                opt.label
-              );
+              return h(FlipButton, {
+                key: i,
+                idleLabel: opt.label,
+                activeLabel: activeLabelFor(opt.label),
+                onDone: function () { window.location.href = opt.url; },
+                className: "w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition" + (i > 0 ? " border-t border-white/10" : "")
+              });
             })
           )
         );
@@ -1279,7 +1322,7 @@ function closeNotice() {
       }),
       header,
       page === "home"
-        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, footer)
+        ? h("main", { className: "max-w-full md:max-w-[1280px] mx-auto px-2 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, footer)
         : refundPolicyPage,
       h("style", null, "\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap');\n        *{font-family:Inter, Poppins, sans-serif}\n        ::-webkit-scrollbar{width:6px;height:6px}\n        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:99px}\n        .scroll-mt-24{scroll-margin-top:6rem}\n      ")
     );

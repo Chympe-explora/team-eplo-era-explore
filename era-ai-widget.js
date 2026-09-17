@@ -150,8 +150,8 @@
       max-height:min(480px,calc(100vh - 220px));display:flex;flex-direction:column;overflow:hidden;
       border-radius:20px;border:1px solid rgba(255,255,255,0.14);background:rgba(20,22,20,0.82);
       backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 20px 50px rgba(0,0,0,0.5);
-      opacity:0;transform:translateY(12px) scale(.97);pointer-events:none;
-      transition:opacity .25s ease, transform .25s ease;font:400 13px/1.5 "Inter",sans-serif;color:#fff;}
+      opacity:0;transform-origin:bottom right;transform:translateY(16px) scale(.82);pointer-events:none;
+      transition:opacity .32s cubic-bezier(.2,.8,.2,1), transform .32s cubic-bezier(.2,.8,.2,1);font:400 13px/1.5 "Inter",sans-serif;color:#fff;}
     #era-ai-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
     #era-ai-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
       border-bottom:1px solid rgba(255,255,255,0.1);}
