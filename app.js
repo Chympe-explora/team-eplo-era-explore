@@ -1037,31 +1037,42 @@ function closeNotice() {
       // (to clip the photo's rounded corners), which would silently
       // clip an absolutely-positioned popover too, no matter its
       // z-index. `fixed` is computed relative to the viewport instead
-      // of any ancestor, so it can't be clipped this way. ----
-      openDestMenu && destMenuPos && (function () {
-        var d = (DEST.items || []).find(function (x) { return x.id === openDestMenu; });
-        if (!d || !d.navOptions || !d.navOptions.length) return null;
-        return h(
-          "div", { className: "fixed inset-0 z-[999]", onClick: function () { setOpenDestMenu(null); } },
-          h(
-            "div",
-            {
-              onClick: function (e) { e.stopPropagation(); },
-              style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px" },
-              className: "kc-dest-popover rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
-            },
-            d.navOptions.map(function (opt, i) {
-              return h(FlipButton, {
-                key: i,
-                idleLabel: opt.label,
-                activeLabel: activeLabelFor(opt.label),
-                onDone: function () { window.location.href = opt.url; },
-                className: "w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition" + (i > 0 ? " border-t border-white/10" : "")
-              });
-            })
-          )
-        );
-      })()
+      // of any ancestor, so it can't be clipped this way — EXCEPT that
+      // <main> (see styles.css) has `perspective` set for the site's 3D
+      // card effect, and any ancestor with a transform/perspective
+      // becomes the containing block for `position: fixed` too. Left
+      // as a normal child, this popover would be fixed relative to
+      // <main> instead of the real viewport and could render in the
+      // wrong spot or off-screen. createPortal mounts it directly on
+      // document.body, outside <main> entirely, so it's always fixed
+      // to the true viewport regardless of any 3D effects elsewhere. ----
+      openDestMenu && destMenuPos && ReactDOM.createPortal(
+        (function () {
+          var d = (DEST.items || []).find(function (x) { return x.id === openDestMenu; });
+          if (!d || !d.navOptions || !d.navOptions.length) return null;
+          return h(
+            "div", { className: "fixed inset-0 z-[999]", onClick: function () { setOpenDestMenu(null); } },
+            h(
+              "div",
+              {
+                onClick: function (e) { e.stopPropagation(); },
+                style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px" },
+                className: "kc-dest-popover rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
+              },
+              d.navOptions.map(function (opt, i) {
+                return h(FlipButton, {
+                  key: i,
+                  idleLabel: opt.label,
+                  activeLabel: activeLabelFor(opt.label),
+                  onDone: function () { window.location.href = opt.url; },
+                  className: "w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition" + (i > 0 ? " border-t border-white/10" : "")
+                });
+              })
+            )
+          );
+        })(),
+        document.body
+      )
     );
 
 

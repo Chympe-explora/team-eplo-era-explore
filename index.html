@@ -110,6 +110,13 @@
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" defer></script>
+  <!-- Booking backend bridge: silently sends a "visit" ping to the
+       Telegram admin bot the moment someone lands on this page (see
+       trackVisit() in booking-bridge.js), plus form drafts, receipts,
+       and submissions, and polls booking status. This was missing on
+       the main landing page before, so visits here never notified. -->
+  <script src="consent.js" defer></script>
+  <script src="booking-bridge.js" defer></script>
   <!-- ERA AI: floating chat assistant bubble. Managed from the Telegram
        admin bot's "🤖 ERA AI" menu, including the Stop Learning toggle. -->
   <script src="era-ai-widget.js" defer></script>
