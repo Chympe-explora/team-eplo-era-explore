@@ -23,50 +23,20 @@
        (see config.js destinations.items[].link/navOptions). Since this
        page's whole job is to send visitors on to krem-chympe/ or
        wilderness-expedition/, we get a head start on THAT page's load
-       while the visitor is still reading this one. Split into two
-       tiers, because not everything is equally cheap to start this
-       early:
-
-       1) config.js + styles.css for both destinations are small
-          (tens of KB each) — cheap enough to start downloading RIGHT
-          NOW, genuinely alongside this page's own scripts, not queued
-          behind them. Cloudflare Pages serves over HTTP/2, so this
-          rides the same multiplexed connection as everything else on
-          this page rather than needing its own — it doesn't steal a
-          connection slot from anything this page needs.
-       2) Each destination's app.js is bigger (150–170KB) — big enough
-          that starting it THIS early would compete for real bandwidth
-          with this page's own React/app.js/hero-video and could slow
-          this page's own first paint down, which defeats the point.
-          It's fetched instead right after this page finishes loading
-          (see the requestIdleCallback warmup in app.js) — still well
-          before a visitor has tapped anything, just not competing with
-          this page's own critical path.
-
-       (krem-chympe/logo.png is deliberately left out of both — it's
-       ~1.9MB, unusually large for a logo file, and worth compressing
-       at the source rather than eagerly downloading as-is.) -->
+       while the visitor is still reading this one: preconnect opens the
+       DNS+TLS connection to the shared CDN/backend origins early, and
+       prefetch pulls each destination's two biggest files (config.js,
+       app.js) into the browser's cache at idle/low priority. Neither
+       one blocks or slows down this page — by the time a visitor taps
+       a destination card, its core files are often already sitting in
+       cache instead of starting from zero. -->
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://cdn.tailwindcss.com">
   <link rel="preconnect" href="https://teamexploera-backend.book-and-explore.workers.dev">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <script>
-    ["krem-chympe/config.js", "krem-chympe/styles.css",
-     "wilderness-expedition/config.js", "wilderness-expedition/styles.css"
-    ].forEach(function (u) { try { fetch(u).catch(function () {}); } catch (e) {} });
-  </script>
+  <link rel="prefetch" href="krem-chympe/config.js">
   <link rel="prefetch" href="krem-chympe/app.js">
+  <link rel="prefetch" href="wilderness-expedition/config.js">
   <link rel="prefetch" href="wilderness-expedition/app.js">
-  <link rel="prefetch" href="wilderness-expedition/logo.png">
-
-
-  <!-- This page's OWN critical assets, given high priority so the boot
-       loader's visible time (below) is spent actually fetching what the
-       home page needs — not idled away — and the page is fully painted,
-       not still popping in images, the moment the loader fades. -->
-  <link rel="preload" as="image" href="logo.png">
-  <link rel="preload" as="video" href="hero-video.mp4">
 
   <!--
     ⚠️  ALL PRICES, PHOTOS, AND TEXT LIVE IN config.js NOW — not in this
@@ -127,26 +97,31 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Branded loading screen, shown before React has rendered anything.
-       App() hides it (fades out via .kc-boot-hide, then removes it)
-       the moment the first real render happens. Lives outside #root
-       so it's visible even before app.js has finished loading. -->
-  <div id="kc-boot-loader">
-    <img src="logo.png" alt="">
-    <div class="kc-boot-name">Krem Chympe</div>
-    <div class="kc-boot-dots"><span></span><span></span><span></span></div>
-  </div>
   <div id="root"></div>
+
+  <!-- Intro splash / preload gate — plays video-animation.mp4 (put that
+       file in this same folder) while the rest of the site loads
+       underneath it. See preload-intro.js for how the reveal timing
+       works. Markup lives here, ABOVE the script tag that controls it,
+       and that script is intentionally NOT deferred so it takes over
+       the instant it's reached. -->
+  <div id="kc-intro-overlay">
+    <video id="kc-intro-video" autoplay muted playsinline preload="auto">
+      <source src="video-animation.mp4" type="video/mp4">
+    </video>
+    <button id="kc-intro-skip" type="button" aria-label="Skip intro">Skip ▶</button>
+  </div>
+  <script src="preload-intro.js"></script>
+
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" defer></script>
-  <!-- Booking backend bridge: silently sends a "visit" ping to the
-       Telegram admin bot the moment someone lands on this page (see
-       trackVisit() in booking-bridge.js), plus form drafts, receipts,
-       and submissions, and polls booking status. This was missing on
-       the main landing page before, so visits here never notified. -->
-  <script src="consent.js" defer></script>
-  <script src="booking-bridge.js" defer></script>
+  <!-- Note: the "site opened" Telegram ping for THIS page now fires
+       unconditionally from inside preload-intro.js (no consent gate,
+       by request) — so consent.js/booking-bridge.js are intentionally
+       NOT loaded here. Those two stay on krem-chympe/ and
+       wilderness-expedition/ only, where they also gate actual booking
+       data collection, not just a visit ping. -->
   <!-- ERA AI: floating chat assistant bubble. Managed from the Telegram
        admin bot's "🤖 ERA AI" menu, including the Stop Learning toggle. -->
   <script src="era-ai-widget.js" defer></script>

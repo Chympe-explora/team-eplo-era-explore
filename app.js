@@ -78,14 +78,11 @@
   // Shared little components
   // ---------------------------------------------------------------------
   function GlassCard(props) {
-    var domProps = { className: "kc-glass-3d backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] " + (props.className || "") };
-    // Forward anything else (id, onMouseEnter, onTouchStart, etc.) as-is
-    // so a caller can e.g. start warming up a link's target the moment
-    // a finger/cursor lands on the card, without a second wrapper div.
-    for (var k in props) {
-      if (k !== "className" && k !== "children") domProps[k] = props[k];
-    }
-    return h("div", domProps, props.children);
+    return h(
+      "div",
+      { className: "backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
+      props.children
+    );
   }
 
   // ImageSlot / MediaSlot — one optional media spot placed anywhere in
@@ -401,7 +398,7 @@
               className: "w-full text-left px-4 py-3 rounded-xl text-white bg-white/5 hover:bg-white/15 transition"
             }, item.label);
           }),
-          h(FlipButton, { idleLabel: bookNowLabel, activeLabel: activeLabelFor(bookNowLabel), onDone: props.onBookNow, className: "w-full bg-[#2E8B57] hover:bg-[#257a4b] text-white py-3 rounded-full font-medium mt-1 transition" })
+          h("button", { onClick: props.onBookNow, className: "w-full bg-[#2E8B57] hover:bg-[#257a4b] text-white py-3 rounded-full font-medium mt-1 transition" }, bookNowLabel)
         ),
 
         // ---- quote + Explore/Book Now ----
@@ -417,12 +414,14 @@
               "— " + hero.quote.split("—").slice(1).join("—").trim()
             )
           ),
-          h(FlipButton, {
-            idleLabel: bookNowLabel,
-            activeLabel: activeLabelFor(bookNowLabel),
-            onDone: props.onBookNow,
-            className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
-          })
+          h(
+            "button",
+            {
+              onClick: props.onBookNow,
+              className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
+            },
+            bookNowLabel
+          )
         ),
 
         // ---- Discover, bottom of hero — scrolls to destinations ----
@@ -593,13 +592,10 @@
       ),
 
       h(
-        GlassCard, { className: "p-4 flex justify-center" },
-        h(
-          "div", { className: "text-center" },
-          h("div", { className: "text-2xl font-bold" }, average || "\u2013"),
-          h(Stars, { value: average, size: 13 }),
-          h("div", { className: "text-white/60 text-xs mt-0.5" }, count + (count === 1 ? " rating" : " ratings"))
-        )
+        GlassCard, { className: "p-4 text-center" },
+        h("div", { className: "text-2xl font-bold" }, average || "\u2013"),
+        h(Stars, { value: average, size: 13 }),
+        h("div", { className: "text-white/60 text-xs mt-0.5" }, count + (count === 1 ? " rating" : " ratings"))
       ),
 
       // ---- Leave a rating — collapsed behind a toggle, same idea as
@@ -616,7 +612,7 @@
       ),
 
       (rateFormOpen || justSubmitted) && h(
-        GlassCard, { className: "p-4 md:p-5 max-w-[560px] mx-auto kc-expand-in" },
+        GlassCard, { className: "p-4 md:p-5 max-w-[560px] mx-auto" },
         justSubmitted
           ? h(
               "div", { className: "text-center py-2" },
@@ -683,8 +679,14 @@
           h("span", null, "\ud83d\udcac Visitor Comments (" + reviews.length + ")"),
           h("span", { className: "text-white/50 text-xs" }, commentsOpen ? "Hide \u25b2" : "Show \u25bc")
         ),
+        // Every visible rating is rendered here — no slice/limit — so a
+        // popular site's full comment history is browsable, not just a
+        // fixed first page of 6/9/12. The backend (ratings.js) already
+        // keeps the newest 300 and sorts newest-first, so this list can
+        // genuinely grow long; it scrolls inside its own max-height box
+        // once it does, instead of pushing the rest of the page down.
         commentsOpen && h(
-          "div", { className: "grid md:grid-cols-2 gap-4" },
+          "div", { className: "grid md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1" },
           reviews.map(function (r) {
             return h(
               GlassCard, { key: r.id, className: "p-5" },
@@ -710,102 +712,7 @@
     return [];
   }
 
-  // Turns an idle button label into its "in progress" phrase —
-  // handles the specific words this site actually uses ("Book Now",
-  // "Explore"/"Explore Destination(s)", "Submit") and falls back to a
-  // generic "<label>ing..." for any custom text an admin might set.
-  function activeLabelFor(idle) {
-    var t = (idle || "").trim();
-    var lower = t.toLowerCase();
-    if (lower === "book now") return "Booking...";
-    if (lower === "explore" || lower === "explore destination" || lower === "explore destinations") return "Exploring...";
-    if (lower === "submit" || lower === "submit booking") return "Submitting...";
-    if (/^[a-z]+e$/i.test(t)) return t.slice(0, -1) + "ing...";
-    if (/^[a-z]+$/i.test(t)) return t + "ing...";
-    return t + " …";
-  }
-
-  // FlipButton — a button whose label "flips" to a busy/active phrase
-  // the moment it's tapped ("Book Now" -> "Booking...", "Explore" ->
-  // "Exploring...") and only THEN performs the real action (onDone),
-  // after the flip animation has had a moment to play. The label span
-  // below is re-keyed by its own text, so React unmounts/remounts it
-  // on every change — that's what triggers the .kc-swap-text CSS
-  // animation in styles.css, no manual animation timing needed here.
-  function FlipButton(props) {
-    var activeState = useState(false); var active = activeState[0], setActive = activeState[1];
-    var targetRef = useRef(null);
-    var label = active ? props.activeLabel : props.idleLabel;
-    function handleClick(e) {
-      if (active) return; // ignore repeat taps mid-flip
-      targetRef.current = e.currentTarget; // DOM node, for callers like toggleDestMenu that need it
-      // instant: skip the flip-wait entirely and fire onDone on this
-      // same tap. Used for buttons whose job is to open a menu or hand
-      // off to somewhere else (destination "Explore" button, nav
-      // popover options) — there the 380ms+500ms flip delay chain only
-      // added a false wait before the menu/link ever appeared, which is
-      // what made these feel like they needed several taps to work.
-      if (props.instant) {
-        if (props.onDone) props.onDone(targetRef.current);
-        return;
-      }
-      setActive(true);
-      setTimeout(function () {
-        if (props.onDone) props.onDone(targetRef.current);
-        // Reset a beat later so the button is tappable again for
-        // actions that don't navigate away (e.g. a same-page scroll).
-        setTimeout(function () { setActive(false); }, 500);
-      }, 380);
-    }
-    return h(
-      "button",
-      { onClick: handleClick, className: "kc-flip-btn" + (active ? " kc-flip-btn-active" : "") + " " + props.className },
-      h(
-        "span", { className: "kc-flip-inner" },
-        h(
-          "span", { className: "kc-flip-knob" },
-          h("svg", { className: "kc-knob-idle", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M5 12h14" }), h("path", { d: "m12 5 7 7-7 7" })),
-          h("svg", { className: "kc-knob-active", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M20 6 9 17l-5-5" }))
-        ),
-        h("span", { key: label, className: "kc-swap-text" }, label),
-        props.children
-      )
-    );
-  }
-
   function App() {
-    // Hide the branded boot-loading screen (see index.html). By the time
-    // this effect runs, the home page has already rendered underneath it
-    // — this loader is purely a cosmetic mask on top of an already-ready
-    // page. On a normal connection we deliberately hold that mask up for
-    // 3.5s and spend the whole window warming up both destination sites
-    // in full (not just their files — see warmupDestination), so by the
-    // time the visitor actually sees the home page, both destinations
-    // are already close to ready to tap into. On Data Saver / a 2G-class
-    // connection we skip the hold entirely and reveal immediately —
-    // those visitors get nothing out of the wait (see note below) and
-    // holding them on a loading screen for no payoff is a pure cost.
-    useEffect(function () {
-      var loader = document.getElementById("kc-boot-loader");
-      function hideLoader() {
-        if (!loader) return;
-        loader.classList.add("kc-boot-hide");
-        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
-      }
-
-      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      var slowConn = conn && (conn.saveData || /2g/.test(conn.effectiveType || ""));
-
-      if (slowConn) {
-        hideLoader();
-        return;
-      }
-
-      setTimeout(hideLoader, 3500);
-      var items = (CONTENT.destinations && CONTENT.destinations.items) || [];
-      items.forEach(function (d) { warmupDestination(d); });
-    }, []);
-
     var menuState = useState(false); var mobileMenuOpen = menuState[0], setMobileMenuOpen = menuState[1];
 
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
@@ -973,7 +880,7 @@ function closeNotice() {
         ),
         h(
           "div", { className: "flex items-center gap-2" },
-          h(FlipButton, { idleLabel: HEADER_CTA.label || "Book Now", activeLabel: activeLabelFor(HEADER_CTA.label || "Book Now"), onDone: function () { navigateTo(HEADER_CTA); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }),
+          h("button", { onClick: function () { navigateTo(HEADER_CTA); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }, HEADER_CTA.label || "Book Now"),
           h("button", { onClick: function () { setMobileMenuOpen(!mobileMenuOpen); }, className: "md:hidden w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center" }, mobileMenuOpen ? h(X, { size: 18 }) : h(Menu, { size: 18 }))
         )
       ),
@@ -986,7 +893,7 @@ function closeNotice() {
             className: "w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10"
           }, item.label);
         }),
-        h(FlipButton, { idleLabel: HEADER_CTA.label || "Book Now", activeLabel: activeLabelFor(HEADER_CTA.label || "Book Now"), onDone: function () { navigateTo(HEADER_CTA); setMobileMenuOpen(false); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" })
+        h("button", { onClick: function () { navigateTo(HEADER_CTA); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" }, HEADER_CTA.label || "Book Now")
       )
     );
 
@@ -1002,7 +909,7 @@ function closeNotice() {
         h("p", { className: "mt-5 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, HERO.sub),
         h(
           "div", { className: "mt-8 flex flex-wrap gap-3" },
-          h(FlipButton, { idleLabel: "Explore Destinations", activeLabel: "Exploring...", onDone: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" })
+          h("button", { onClick: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Explore Destinations ", h(ArrowRight, { size: 16 }))
         )
       )
     );
@@ -1028,37 +935,12 @@ function closeNotice() {
     );
 
     // ---- Destinations -------------------------------------------------
-    // Fires the moment a visitor's finger/cursor lands on a destination
-    // card — well before the ~380ms it then takes them to actually tap
-    // the button. Requests these with priority:"high" (vs. the low-
-    // priority idle <link rel="prefetch"> in index.html, which has to
-    // guess at both destinations at once) so by the time the tap lands,
-    // THIS destination's core files are typically already in cache.
-    // Harmless to fire more than once — the browser dedupes/serves from
-    // cache on repeat calls for the same URL.
-    function warmupDestination(d) {
-      if (!d || !d.link || d._warmed) return;
-      d._warmed = true;
-      var base = d.link.replace(/[^/]*$/, ""); // strip "index.html" (and any ?query)
-      ["config.js", "app.js", "styles.css"].forEach(function (f) {
-        try { fetch(base + f, { priority: "high" }).catch(function () {}); } catch (e) {}
-      });
-      if (window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) {
-        try {
-          var s = document.createElement("script");
-          s.type = "speculationrules";
-          s.textContent = JSON.stringify({ prerender: [{ source: "list", urls: [d.link] }] });
-          document.body.appendChild(s);
-        } catch (e) {}
-      }
-    }
-
     var DEST = CONTENT.destinations || { title: "Destinations", subtitle: "", items: [] };
     var destinations = h(
       "section", { id: "destinations", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "destinations" }),
       h(
-        GlassCard, { className: "mb-4 md:mb-6 p-5 md:p-6" },
+        GlassCard, { className: "mb-4 md:mb-6 px-6 py-5 text-center" },
         h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight" }, DEST.title),
         DEST.subtitle && h("p", { className: "mt-1 text-white/60 text-sm" }, DEST.subtitle)
       ),
@@ -1066,31 +948,28 @@ function closeNotice() {
         "div", { className: "grid md:grid-cols-2 gap-6" },
         (DEST.items || []).map(function (d) {
           return h(
-            GlassCard, {
-              key: d.id, id: "dest-" + d.id, className: "overflow-hidden flex flex-col relative",
-              onMouseEnter: function () { warmupDestination(d); },
-              onTouchStart: function () { warmupDestination(d); }
-            },
+            GlassCard, { key: d.id, id: "dest-" + d.id, className: "overflow-hidden flex flex-col relative" },
             d.image && h("img", { src: d.image, alt: d.name || "Destination photo", loading: "lazy", decoding: "async", className: "w-full h-[220px] object-cover" }),
             h(
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
               h("p", { className: "mt-3 text-white/70 text-sm leading-relaxed flex-1" }, d.description),
-              h(FlipButton, {
-                instant: true,
-                idleLabel: d.buttonLabel || "Explore Destination",
-                activeLabel: activeLabelFor(d.buttonLabel || "Explore Destination"),
-                onDone: function (targetEl) {
-                  if (d.navOptions && d.navOptions.length) {
-                    toggleDestMenu(d.id, targetEl);
-                  } else if (d.link) {
-                    window.location.href = d.link;
-                  } else {
-                    goTo("booking");
-                  }
+              h(
+                "button",
+                {
+                  onClick: function (e) {
+                    if (d.navOptions && d.navOptions.length) {
+                      toggleDestMenu(d.id, e.currentTarget);
+                    } else if (d.link) {
+                      window.location.href = d.link;
+                    } else {
+                      goTo("booking");
+                    }
+                  },
+                  className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold"
                 },
-                className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold"
-              })
+                d.buttonLabel || "Explore Destination"
+              )
             )
           );
         })
@@ -1102,43 +981,33 @@ function closeNotice() {
       // (to clip the photo's rounded corners), which would silently
       // clip an absolutely-positioned popover too, no matter its
       // z-index. `fixed` is computed relative to the viewport instead
-      // of any ancestor, so it can't be clipped this way — EXCEPT that
-      // <main> (see styles.css) has `perspective` set for the site's 3D
-      // card effect, and any ancestor with a transform/perspective
-      // becomes the containing block for `position: fixed` too. Left
-      // as a normal child, this popover would be fixed relative to
-      // <main> instead of the real viewport and could render in the
-      // wrong spot or off-screen. createPortal mounts it directly on
-      // document.body, outside <main> entirely, so it's always fixed
-      // to the true viewport regardless of any 3D effects elsewhere. ----
-      openDestMenu && destMenuPos && ReactDOM.createPortal(
-        (function () {
-          var d = (DEST.items || []).find(function (x) { return x.id === openDestMenu; });
-          if (!d || !d.navOptions || !d.navOptions.length) return null;
-          return h(
-            "div", { className: "fixed inset-0 z-[999]", onClick: function () { setOpenDestMenu(null); } },
-            h(
-              "div",
-              {
-                onClick: function (e) { e.stopPropagation(); },
-                style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px" },
-                className: "kc-dest-popover text-white rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
-              },
-              d.navOptions.map(function (opt, i) {
-                return h(FlipButton, {
+      // of any ancestor, so it can't be clipped this way. ----
+      openDestMenu && destMenuPos && (function () {
+        var d = (DEST.items || []).find(function (x) { return x.id === openDestMenu; });
+        if (!d || !d.navOptions || !d.navOptions.length) return null;
+        return h(
+          "div", { className: "fixed inset-0 z-[999]", onClick: function () { setOpenDestMenu(null); } },
+          h(
+            "div",
+            {
+              onClick: function (e) { e.stopPropagation(); },
+              style: { position: "fixed", top: destMenuPos.top + "px", left: destMenuPos.left + "px", width: destMenuPos.width + "px", transform: "translateY(-100%) translateY(-8px)" },
+              className: "rounded-xl overflow-hidden border border-white/15 bg-[#111815] shadow-xl"
+            },
+            d.navOptions.map(function (opt, i) {
+              return h(
+                "button",
+                {
                   key: i,
-                  instant: true,
-                  idleLabel: opt.label,
-                  activeLabel: activeLabelFor(opt.label),
-                  onDone: function () { window.location.href = opt.url; },
+                  onClick: function () { window.location.href = opt.url; },
                   className: "w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition" + (i > 0 ? " border-t border-white/10" : "")
-                });
-              })
-            )
-          );
-        })(),
-        document.body
-      )
+                },
+                opt.label
+              );
+            })
+          )
+        );
+      })()
     );
 
 
@@ -1399,7 +1268,7 @@ function closeNotice() {
       }),
       header,
       page === "home"
-        ? h("main", { className: "max-w-full md:max-w-[1280px] mx-auto px-2 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, footer)
+        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, footer)
         : refundPolicyPage,
       h("style", null, "\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap');\n        *{font-family:Inter, Poppins, sans-serif}\n        ::-webkit-scrollbar{width:6px;height:6px}\n        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:99px}\n        .scroll-mt-24{scroll-margin-top:6rem}\n      ")
     );
