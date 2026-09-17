@@ -209,7 +209,7 @@
   function GlassCard(props) {
     return h(
       "div",
-      { className: "kc-glass-3d backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] " + (props.className || "") },
+      { className: "backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
       props.children
     );
   }
@@ -792,68 +792,7 @@
     return h("p", { className: "mt-2 text-[12px] text-white/40" }, props.label, countdown, "s");
   });
 
-  // Turns an idle button label into its "in progress" phrase —
-  // handles the specific words this site actually uses ("Book Now",
-  // "Explore"/"Explore Destination(s)", "Submit") and falls back to a
-  // generic "<label>ing..." for any custom text an admin might set.
-  function activeLabelFor(idle) {
-    var t = (idle || "").trim();
-    var lower = t.toLowerCase();
-    if (lower === "book now") return "Booking...";
-    if (lower === "explore" || lower === "explore destination" || lower === "explore destinations") return "Exploring...";
-    if (lower === "submit" || lower === "submit booking") return "Submitting...";
-    if (/^[a-z]+e$/i.test(t)) return t.slice(0, -1) + "ing...";
-    if (/^[a-z]+$/i.test(t)) return t + "ing...";
-    return t + " …";
-  }
-
-  // FlipButton — a button whose label "flips" to a busy/active phrase
-  // the moment it's tapped ("Book Now" -> "Booking...", "Explore" ->
-  // "Exploring...") and only THEN performs the real action (onDone),
-  // after the flip animation has had a moment to play. The label span
-  // below is re-keyed by its own text, so React unmounts/remounts it
-  // on every change — that's what triggers the .kc-swap-text CSS
-  // animation in styles.css, no manual animation timing needed here.
-  function FlipButton(props) {
-    var activeState = useState(false); var active = activeState[0], setActive = activeState[1];
-    var targetRef = useRef(null);
-    var label = active ? props.activeLabel : props.idleLabel;
-    function handleClick(e) {
-      if (active) return; // ignore repeat taps mid-flip
-      targetRef.current = e.currentTarget;
-      setActive(true);
-      setTimeout(function () {
-        if (props.onDone) props.onDone(targetRef.current);
-        setTimeout(function () { setActive(false); }, 500);
-      }, 380);
-    }
-    return h(
-      "button",
-      { onClick: handleClick, className: "kc-flip-btn" + (active ? " kc-flip-btn-active" : "") + " " + props.className, disabled: props.disabled },
-      h(
-        "span", { className: "kc-flip-inner" },
-        h(
-          "span", { className: "kc-flip-knob" },
-          h("svg", { className: "kc-knob-idle", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M5 12h14" }), h("path", { d: "m12 5 7 7-7 7" })),
-          h("svg", { className: "kc-knob-active", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M20 6 9 17l-5-5" }))
-        ),
-        h("span", { key: label, className: "kc-swap-text" }, label),
-        props.children
-      )
-    );
-  }
-
   function App() {
-    // Hide the branded boot-loading screen (see index.html) the moment
-    // this component's first real render has committed to the DOM —
-    // fade it out, then remove it outright so it can't intercept taps.
-    useEffect(function () {
-      var loader = document.getElementById("kc-boot-loader");
-      if (!loader) return;
-      loader.classList.add("kc-boot-hide");
-      setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
-    }, []);
-
     // Lets an external link jump straight to a specific page —
     // e.g. root site's destination card can link to
     // "wilderness-expedition/index.html?page=3" to open the booking
@@ -1828,7 +1767,7 @@
         ),
         h(
           "div", { className: "flex items-center gap-2" },
-          h(FlipButton, { idleLabel: t("bookNow", "Book Now"), activeLabel: activeLabelFor(t("bookNow", "Book Now")), onDone: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }),
+          h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "hidden md:block bg-[#2E8B57] hover:bg-[#257a4b] px-5 py-2 rounded-full text-sm font-medium transition" }, t("bookNow", "Book Now")),
           h("button", { onClick: function () { setMobileMenuOpen(!mobileMenuOpen); }, className: "md:hidden w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center" }, mobileMenuOpen ? h(X, { size: 18 }) : h(Menu, { size: 18 }))
         )
       ),
@@ -1841,7 +1780,7 @@
             className: "w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10"
           }, navLabel(p));
         }),
-        h(FlipButton, { idleLabel: t("bookNow", "Book Now"), activeLabel: activeLabelFor(t("bookNow", "Book Now")), onDone: function () { setPage(HEADER_CTA_TARGET_PAGE); setMobileMenuOpen(false); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" }),
+        h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); setMobileMenuOpen(false); }, className: "w-full bg-[#2E8B57] py-3 rounded-full font-medium" }, t("bookNow", "Book Now")),
         h("a", { href: "admin.html", className: "block text-center text-[11px] text-white/30 pt-1" }, "Admin")
       )
     );
@@ -1849,7 +1788,7 @@
     // ---- Page 1: Home ------------------------------------------------
     var titleWords = CONTENT.hero.title.split(" ");
     var page1 = page === 1 && h(
-      "main", { id: "kc-content-start", "data-kc-page": "1", className: "max-w-full md:max-w-[1280px] mx-auto px-2 md:px-6 pb-32 space-y-6 scroll-mt-24 relative" },
+      "main", { id: "kc-content-start", "data-kc-page": "1", className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-6 scroll-mt-24 relative" },
       h(SectionBG, { section: "1" }),
       h(
         "div", { className: "grid md:grid-cols-[1.15fr_0.85fr] gap-6" },
@@ -1861,7 +1800,7 @@
             titleWords.slice(0, 2).join(" "), h("br"), h("span", { className: "text-white/70" }, titleWords.slice(2).join(" "))
           ),
           h("p", { className: "mt-5 text-white/70 text-[15px] leading-relaxed max-w-[520px]" }, CONTENT.hero.sub),
-          h("div", { className: "mt-8 flex gap-3" }, h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Book Now"))
+          h("div", { className: "mt-8 flex gap-3" }, h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Book Now ", h(ArrowRight, { size: 16 })))
         ),
         h(
           GlassCard, { className: "p-5 md:p-6 flex flex-col justify-between" },
@@ -1874,7 +1813,7 @@
             h("div", { className: "flex items-center justify-between" }, h("span", { className: "text-sm text-white/70 flex items-center gap-2" }, h(IndianRupee, { size: 16 }), t("price", " Price")), h("span", { className: "text-sm font-medium" }, CONTENT.hero.priceLabel)),
             h("div", { className: "mt-6 rounded-[16px] overflow-hidden border border-white/10" }, h("img", { src: CONTENT.sectionImages.heroCave, alt: (CONTENT.siteName || "Destination") + " photo", className: "w-full h-[180px] object-cover" }))
           ),
-          h(FlipButton, { idleLabel: t("bookNow", "Book Now"), activeLabel: activeLabelFor(t("bookNow", "Book Now")), onDone: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold" })
+          h("button", { onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full text-sm font-semibold" }, t("bookNow", "Book Now"))
         )
       ),
       SECTIONS.trustBar && h(
@@ -2181,7 +2120,7 @@
           "ul", { className: "mt-4 space-y-2 text-[13px] text-white/70" },
           PKG.sharedTour.features.map(function (f) { return IncludedItem(fill(f, pkgFillValues)); })
         ),
-        h(FlipButton, { idleLabel: t("bookNow", "Book Now"), activeLabel: activeLabelFor(t("bookNow", "Book Now")), onDone: function () { goToPackage("sharedTour"); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full font-medium flex items-center justify-center gap-2" })
+        h("button", { onClick: function () { goToPackage("sharedTour"); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full font-medium flex items-center justify-center gap-2" }, t("bookNow", "Book Now"), " ", h(ArrowRight, { size: 16 }))
       )
     );
 
@@ -2208,13 +2147,13 @@
           "ul", { className: "mt-4 space-y-2 text-[13px] text-white/70" },
           PKG.privatePackage.features.map(function (f) { return IncludedItem(f); })
         ),
-        h(FlipButton, { idleLabel: t("bookNow", "Book Now"), activeLabel: activeLabelFor(t("bookNow", "Book Now")), onDone: function () { goToPackage("privatePackage"); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full font-medium flex items-center justify-center gap-2" })
+        h("button", { onClick: function () { goToPackage("privatePackage"); }, className: "mt-6 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full font-medium flex items-center justify-center gap-2" }, t("bookNow", "Book Now"), " ", h(ArrowRight, { size: 16 }))
       )
     );
 
     // ---- Page 2: Packages & Gallery ------------------------------------
     var page2 = page === 2 && h(
-      "main", { id: "kc-packages", "data-kc-page": "2", className: "max-w-full md:max-w-[1280px] mx-auto px-2 md:px-6 pb-32 space-y-6 scroll-mt-24 relative" },
+      "main", { id: "kc-packages", "data-kc-page": "2", className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-6 scroll-mt-24 relative" },
       h(SectionBG, { section: "2" }),
       h(
         GlassCard, { className: "p-8 md:p-10 text-center" },
@@ -2437,14 +2376,14 @@
             onClick: function () { setPage(4); },
             className: "mt-8 w-full bg-[#2E8B57] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#257a4b] py-3.5 rounded-full font-semibold flex items-center justify-center gap-2"
           },
-          t("nextViewPricing", "Next — View Pricing ")
+          t("nextViewPricing", "Next — View Pricing "), h(ArrowRight, { size: 18 })
         )
       )
     );
 
     // ---- Page 4: Pricing / invoice calculator --
     var page4 = page === 4 && h(
-      "main", { "data-kc-page": "4", className: "max-w-full md:max-w-[1280px] mx-auto px-2 md:px-6 pb-32 space-y-6 relative" },
+      "main", { "data-kc-page": "4", className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-6 relative" },
       h(SectionBG, { section: "4" }),
       h(GlassCard, { className: "p-8 text-center" }, h("h2", { className: "text-3xl font-bold" }, t("pricingFacilities", "Pricing & Facilities")), h("p", { className: "text-white/60 text-sm mt-2" }, packageLabel, " — itemized invoice")),
       h(
@@ -2573,17 +2512,8 @@
               // in flight or already sitting pending with the guide, the
               // button is visibly disabled too, not just logically blocked.
               disabled: advance < minAdvance || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
-              className: "kc-whatsapp-btn kc-flip-btn" + (isSubmitting ? " kc-flip-btn-active" : "")
-            }, h(
-              "span", { className: "kc-flip-inner" },
-              h(Phone, { size: 18 }),
-              h(
-                "span", { className: "kc-flip-knob" },
-                h("svg", { className: "kc-knob-idle", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M5 12h14" }), h("path", { d: "m12 5 7 7-7 7" })),
-                h("svg", { className: "kc-knob-active", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: "M20 6 9 17l-5-5" }))
-              ),
-              h("span", { key: isSubmitting ? "sending" : "submit", className: "kc-swap-text" }, isSubmitting ? t("sendingBookingButton", "Sending…") : t("submitBookingButton", "Submit"))
-            ))
+              className: "kc-whatsapp-btn"
+            }, h(Phone, { size: 18 }), isSubmitting ? t("sendingBookingButton", "Sending…") : t("submitBookingButton", "Submit"))
           )
         )
       )
@@ -2848,11 +2778,11 @@
         h("button", {
           onClick: goBack,
           className: "px-5 py-2 rounded-full bg-white/10 border border-white/10 text-sm flex items-center gap-2"
-        }, t("back", " Back")),
+        }, h(ArrowLeft, { size: 16 }), t("back", " Back")),
         page === 1 && h("button", {
           onClick: function () { setPage(HEADER_CTA_TARGET_PAGE); },
           className: "px-6 py-2 rounded-full bg-[#2E8B57] hover:bg-[#257a4b] text-sm font-medium flex items-center gap-2"
-        }, t("next", "Next ")),
+        }, t("next", "Next "), h(ArrowRight, { size: 16 })),
         page !== 1 && h("div", { className: "w-[92px]" })
       )
     );
