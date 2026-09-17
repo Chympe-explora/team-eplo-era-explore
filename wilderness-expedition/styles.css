@@ -26,3 +26,158 @@
 .kc-whatsapp-btn:hover{box-shadow:0 6px 18px rgba(0,0,0,.2)}
 .kc-whatsapp-btn:active{transform:scale(.98)}
 .kc-whatsapp-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none}
+
+/* ===========================================================
+   Global additions — hover effects, bigger type, and reusable
+   animation classes used by the flip-buttons, expanding
+   sections, and loading screen in app.js / era-ai-widget.js.
+   =========================================================== */
+
+/* Slightly larger base type across the whole site. Tailwind's text-*
+   utilities are all in rem, so bumping the root font-size scales every
+   one of them proportionally without touching each className. */
+html { font-size: 108%; }
+
+/* Universal button feel: every <button> gets a small lift + brighten
+   on hover and a gentle press-down on tap, layered on top of whatever
+   hover:bg-*/hover:opacity-* a button already has from Tailwind. */
+button {
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.015);
+    filter: brightness(1.08);
+  }
+}
+button:active:not(:disabled) {
+  transform: scale(.97);
+  filter: brightness(.97);
+}
+
+/* Flip/swipe text swap — used for "Book Now" -> "Booking...",
+   "Explore" -> "Exploring...", "Submit" -> "Submitting...". Each
+   label is re-keyed by its own text in app.js, so React unmounts the
+   old span and mounts a new one whenever the text changes — this
+   animation plays automatically on that mount, no JS timing needed. */
+@keyframes kcSwapIn {
+  from { opacity: 0; transform: translateY(55%) rotateX(60deg); }
+  to   { opacity: 1; transform: translateY(0) rotateX(0deg); }
+}
+.kc-swap-text {
+  display: inline-block;
+  animation: kcSwapIn .32s cubic-bezier(.2,.8,.2,1);
+  transform-origin: center bottom;
+}
+
+/* Smooth "expand" entrance — used when a collapsed panel (Rate Your
+   Trip form, comments list) first mounts. Plays once on mount, same
+   re-key trick as above. */
+@keyframes kcExpandIn {
+  from { opacity: 0; transform: scaleY(.9) translateY(-10px); }
+  to   { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+.kc-expand-in {
+  animation: kcExpandIn .35s cubic-bezier(.2,.8,.2,1);
+  transform-origin: top center;
+}
+
+/* Branded loading screen shown before the site's own JS has rendered
+   anything — removed (faded out) once App() mounts for the first
+   time. Lives outside the #root div so it shows even before React
+   has loaded. */
+#kc-boot-loader {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px;
+  background: #0d1310;
+  transition: opacity .4s ease;
+}
+#kc-boot-loader.kc-boot-hide { opacity: 0; pointer-events: none; }
+#kc-boot-loader img { width: 64px; height: 64px; object-fit: contain; animation: kcPulse 1.4s ease-in-out infinite; }
+#kc-boot-loader .kc-boot-name { color: #fff; font: 700 15px/1.4 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+#kc-boot-loader .kc-boot-dots span {
+  display: inline-block; width: 6px; height: 6px; margin: 0 3px; border-radius: 50%;
+  background: #2E8B57; animation: kcDot 1.2s ease-in-out infinite;
+}
+#kc-boot-loader .kc-boot-dots span:nth-child(2) { animation-delay: .15s; }
+#kc-boot-loader .kc-boot-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes kcPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: .8; } }
+@keyframes kcDot { 0%,100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-6px); opacity: 1; } }
+
+/* ===========================================================
+   Glass-knob flip button — inspired by the frosted-glass toggle
+   reference video: a glowing circular "knob" slides across the
+   button and its icon crossfades the moment the button is tapped,
+   at the same time the label text crossfades to its busy phrase.
+   True 3D glass refraction (like the reference) isn't something
+   CSS can reproduce — this is a flat, honest approximation built
+   from backdrop-blur + radial highlights + a glow that intensifies
+   on tap, applied automatically to every FlipButton on the site.
+   =========================================================== */
+.kc-flip-inner {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; position: relative;
+}
+.kc-flip-knob {
+  /* Arrow/checkmark knob removed from every button site-wide per request —
+     kept in the DOM (app.js still renders it) but fully hidden here so the
+     buttons show just their label, no circular arrow icon. */
+  display: none !important;
+}
+.kc-flip-knob svg { width: 12px; height: 12px; position: absolute; transition: opacity .25s ease, transform .25s ease; }
+.kc-flip-knob .kc-knob-idle { opacity: 1; transform: scale(1) rotate(0deg); color: #1b2a22; }
+.kc-flip-knob .kc-knob-active { opacity: 0; transform: scale(.4) rotate(-90deg); color: #1b2a22; }
+button.kc-flip-btn-active .kc-flip-knob {
+  transform: translateX(3px) scale(1.12);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.45) inset, 0 0 18px 6px rgba(255,196,0,.65);
+}
+button.kc-flip-btn-active .kc-flip-knob .kc-knob-idle { opacity: 0; transform: scale(.4) rotate(90deg); }
+button.kc-flip-btn-active .kc-flip-knob .kc-knob-active { opacity: 1; transform: scale(1) rotate(0deg); }
+/* Whole button gets a soft glow bloom the instant it flips, echoing
+   the reference video's colour-shift on activation. */
+button.kc-flip-btn-active {
+  box-shadow: 0 0 22px 2px rgba(255,196,0,.35);
+}
+
+/* ===========================================================
+   3D depth for every glass card/section — a richer, multi-layer
+   shadow (close contact shadow + soft ambient falloff + a bright
+   top rim-light) so panels read as raised, physical surfaces
+   instead of flat tinted rectangles, plus a gentle hover tilt on
+   devices with a real pointer (skipped on touch, where a "hover"
+   would otherwise stick after a tap).
+   =========================================================== */
+main, .kc-glass-3d { perspective: 1400px; }
+.kc-glass-3d {
+  transform-style: preserve-3d;
+  /* Always-on tilt (not just a hover effect) so every section reads as a
+     raised, physical 3D panel on every device, mobile included. */
+  transform: rotateX(3deg) scale(1);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 -14px 28px rgba(0,0,0,.22) inset,
+    0 22px 44px rgba(0,0,0,.45),
+    0 8px 18px rgba(0,0,0,.32),
+    0 2px 0 rgba(255,255,255,.05);
+  transition: transform .4s cubic-bezier(.2,.8,.2,1), box-shadow .4s cubic-bezier(.2,.8,.2,1);
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kc-glass-3d:hover {
+    transform: translateY(-6px) rotateX(5deg) scale(1.012);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.2) inset,
+      0 -14px 28px rgba(0,0,0,.22) inset,
+      0 32px 56px rgba(0,0,0,.5),
+      0 12px 22px rgba(0,0,0,.36),
+      0 2px 0 rgba(255,255,255,.06);
+  }
+}
+@media (hover: none) or (pointer: coarse) {
+  /* No hover on touch devices — give the tilt a slight breathing motion
+     instead so the 3D depth is still visible without needing a pointer. */
+  .kc-glass-3d:active {
+    transform: rotateX(1deg) scale(.99);
+  }
+}
