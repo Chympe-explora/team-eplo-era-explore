@@ -14,6 +14,7 @@
   <meta property="og:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
   <meta property="og:image" content="og-image.jpg">
   <meta property="og:url" content="https://team-eplo-era-explore.pages.dev/">
+  <meta property="og:site_name" content="Team Explo Era">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Krem Chympe — Adventure &amp; Camping">
   <meta name="twitter:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
@@ -68,33 +69,33 @@
       }
     });
   </script>
-  <script src="config.js" defer></script>
+  <script src="config.js?v=2" defer></script>
   <script>window.KC_SITE_ID = "root";</script>
   <!-- Pulls in anything changed from the Telegram admin bot (text,
        photos, prices, discounts, highlights) and merges it over the
        config.js defaults above, before the page renders. See
        live-content.js — safe to remove and the site still works from
        config.js alone. -->
-  <script src="live-content.js" defer></script>
+  <script src="live-content.js?v=2" defer></script>
 
   <!-- Site-wide fixed background video, mounted once outside the React
        app so it never restarts on scroll or page navigation. Reads
        window.KC_CONTENT.background (see config.js) — safe to remove,
        the site still renders fine without it. -->
-  <script src="background-system.js" defer></script>
+  <script src="background-system.js?v=2" defer></script>
 
   <!-- Per-page/per-section font size & color overrides, set from
        Telegram Admin (🔤 Fonts & Colors). Reads
        window.KC_CONTENT.sectionStyles[key].typography — safe to
        remove, the site still renders fine with its normal styling. -->
-  <script src="typography-system.js" defer></script>
+  <script src="typography-system.js?v=2" defer></script>
 
   <!-- Tailwind CSS (JIT engine loaded live from the CDN) — generates every
        utility class app.js uses, on the fly, so no class is ever missing
        no matter what markup/content changes are made later. -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
   <div id="root"></div>
@@ -107,11 +108,11 @@
        the instant it's reached. -->
   <div id="kc-intro-overlay">
     <video id="kc-intro-video" autoplay muted playsinline preload="auto">
-      <source src="video-animation.mp4" type="video/mp4">
+      <source src="video-animation.mp4?v=2" type="video/mp4">
     </video>
     <button id="kc-intro-skip" type="button" aria-label="Skip intro">Skip ▶</button>
   </div>
-  <script src="preload-intro.js"></script>
+  <script src="preload-intro.js?v=2"></script>
 
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
@@ -124,12 +125,12 @@
        data collection, not just a visit ping. -->
   <!-- ERA AI: floating chat assistant bubble. Managed from the Telegram
        admin bot's "🤖 ERA AI" menu, including the Stop Learning toggle. -->
-  <script src="era-ai-widget.js" defer></script>
+  <script src="era-ai-widget.js?v=2" defer></script>
   <!-- Main app -->
-  <script src="app.js" defer></script>
+  <script src="app.js?v=2" defer></script>
   <!-- Makes external links open safely in a new tab -->
-  <script src="safelinks.js" defer></script>
+  <script src="safelinks.js?v=2" defer></script>
   <!-- Content Editor: pencil-icon tap-to-edit tool for text/images/highlights -->
-  <script src="editor.js" defer></script>
+  <script src="editor.js?v=2" defer></script>
 </body>
 </html>
