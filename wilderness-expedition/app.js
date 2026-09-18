@@ -209,7 +209,7 @@
   function GlassCard(props) {
     return h(
       "div",
-      { className: "kc-3d-card backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
+      { className: "backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
       props.children
     );
   }
@@ -834,6 +834,35 @@
     // ever tearing down and restarting the <video> element itself.
     useEffect(function () {
       if (window.KCBackgrounds) window.KCBackgrounds.setPage(String(page));
+    }, [page]);
+
+    // Deep-link scroll — e.g. era-ai-widget.js's "Take me there" button
+    // sends a visitor to "index.html?page=2#kc-packages": the ?page=
+    // param above gets them to the right PAGE, but the #kc-packages
+    // part still needs to scroll them to that exact section once it
+    // exists. The browser's own fragment-scroll only fires once, at
+    // the very first paint — long before React has mounted anything —
+    // so it silently finds nothing and does nothing. This finishes the
+    // job: it polls briefly for the element to show up after this
+    // page's content renders, then scrolls to it (smoothly, respecting
+    // each section's scroll-mt-24 offset so it doesn't land under the
+    // fixed header), and gives up quietly if it never appears.
+    useEffect(function () {
+      var hash = window.location.hash;
+      if (!hash || hash.length < 2) return;
+      var id = hash.slice(1);
+      var tries = 0;
+      var timer = setInterval(function () {
+        var el = document.getElementById(id);
+        tries++;
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          clearInterval(timer);
+        } else if (tries > 40) { // ~4s ceiling — element never showed up
+          clearInterval(timer);
+        }
+      }, 100);
+      return function () { clearInterval(timer); };
     }, [page]);
     // This site sells exactly one package (the Expedition "sharedTour"
     // package — see config.js SECTIONS.privatePackageCard: false). The
