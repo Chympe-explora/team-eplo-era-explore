@@ -393,7 +393,7 @@
             "button",
             {
               onClick: props.onBookNow,
-              className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
+              className: "kc-cta-3d bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full hover:bg-gray-100 transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
             },
             bookNowLabel
           )
