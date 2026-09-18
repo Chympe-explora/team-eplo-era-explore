@@ -393,7 +393,7 @@
             "button",
             {
               onClick: props.onBookNow,
-              className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
+              className: "kc-cta-3d bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full hover:bg-gray-100 transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
             },
             bookNowLabel
           )
@@ -2226,18 +2226,16 @@
         h("label", { className: "space-y-2 block" }, h("span", { className: "text-xs text-white/60" }, STB.childrenLabel), h("div", { className: "flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/10" }, h("span", { className: "text-sm" }, sharedTourForm.children, " " + STB.childrenLabel), h(Stepper, { value: sharedTourForm.children, onChange: function (v) { setSharedTourForm(Object.assign({}, sharedTourForm, { children: v, childAges: syncAges(sharedTourForm.childAges, v) })); } })))
       ),
       h(ChildAgesInput, { count: sharedTourForm.children, ages: sharedTourForm.childAges, onChange: function (ages) { setSharedTourForm(Object.assign({}, sharedTourForm, { childAges: ages })); } }),
+      // Live running total for the currently-selected people count — this
+      // used to be a leftover "lunch add-on" card copied from the Krem
+      // Chympe template (this package has no lunch add-on, so every field
+      // in it was blank except a stray "₹0" price fragment). Replaced with
+      // an actual estimated-total row wired to the same grandTotal used
+      // on the pricing/payment page, so it updates as people are added.
       h(
-        GlassCard, { className: "p-5 !rounded-[16px] space-y-3" },
-        h("div", { className: "flex justify-between items-baseline" }, h("div", { className: "font-medium" }, STB.lunchTitle), h("div", { className: "text-xs text-white/50" }, money(PRICES.sharedTour.lunchThaliPrice) + STB.lunchPriceUnit)),
-        h("div", { className: "text-xs text-white/50" }, STB.lunchSubtitle),
-        toLines(STB.lunchIncludes).map(function (line, i) { return h("div", { key: i, className: "text-xs text-white/50" }, line); }),
-        h("div", { className: "space-y-2" }, (PRICES.sharedTour.thaliTypes || []).map(function (th) {
-          var qty = (sharedTourForm.lunchQty || {})[th.id] || 0;
-          return h(ThaliRow, {
-            key: th.id, name: th.name, price: PRICES.sharedTour.lunchThaliPrice, qty: qty,
-            onChange: function (v) { var next = Object.assign({}, sharedTourForm.lunchQty); next[th.id] = v; setSharedTourForm(Object.assign({}, sharedTourForm, { lunchQty: next })); }
-          });
-        }))
+        GlassCard, { className: "p-4 !rounded-[16px] flex items-center justify-between" },
+        h("span", { className: "text-sm text-white/70" }, t("estimatedTotalLabel", "Estimated Total")),
+        h("span", { className: "text-lg font-bold" }, money(grandTotal))
       )
     );
 
