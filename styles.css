@@ -44,3 +44,112 @@
 #kc-intro-overlay.kc-hide{opacity:0;pointer-events:none;}
 #kc-intro-skip{position:absolute;bottom:22px;right:22px;z-index:2;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);padding:8px 16px;border-radius:9999px;font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;cursor:pointer;backdrop-filter:blur(4px);}
 #kc-intro-skip:hover{background:rgba(255,255,255,.2);}
+
+/* ============================================================
+   3D DEPTH SYSTEM
+   Adds real, layered depth to header, nav, footer, buttons and
+   section/card panels: ambient + contact shadows, a glossy top
+   highlight, and lift/press motion on interaction. Written as
+   plain element selectors so it layers on top of the Tailwind
+   utility classes already on each element without editing app.js.
+   ============================================================ */
+
+/* Every GlassCard panel (header bar, hero, destination cards,
+   footer, modals, forms...) — richer shadow than the flat single
+   drop-shadow it had: ambient blur + tight contact shadow + a
+   glossy inset line along the top edge + a soft inset shadow
+   along the bottom for volume, so each panel reads as a raised
+   slab rather than a flat translucent rectangle. */
+.shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.2\)\,inset_0_1px_0_rgba\(255\,255\,255\,0\.1\)\]{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 -18px 28px -20px rgba(0,0,0,.55) inset,
+    0 1px 2px rgba(0,0,0,.3),
+    0 4px 10px rgba(0,0,0,.28),
+    0 18px 40px rgba(0,0,0,.4);
+}
+
+/* NAV — the pill segmented control gets its own raised, glassy
+   shell, and each link lifts on hover / presses in on click. */
+nav{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 -6px 10px -6px rgba(0,0,0,.4) inset,
+    0 6px 16px rgba(0,0,0,.35);
+}
+nav button{
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+nav button:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,.3);
+}
+nav button:active{
+  transform: translateY(0);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.4);
+}
+
+/* BUTTONS everywhere — raised bevel at rest, lift on hover,
+   press inward on click. Scoped to the box-shadow/transform
+   properties only, so each button's own colors/sizing/borders
+   are untouched. */
+button{
+  position: relative;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -3px 6px rgba(0,0,0,.24) inset,
+    0 1px 2px rgba(0,0,0,.35),
+    0 3px 8px rgba(0,0,0,.3);
+  transform: translateY(0);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+button:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -3px 6px rgba(0,0,0,.24) inset,
+    0 3px 6px rgba(0,0,0,.35),
+    0 10px 22px rgba(0,0,0,.4);
+  filter: brightness(1.06);
+}
+button:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.35) inset,
+    0 1px 2px rgba(0,0,0,.25);
+  filter: brightness(.96);
+}
+button:disabled{
+  transform: none;
+  filter: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+/* Round icon-style links (e.g. the footer's Instagram bubble)
+   get the same raised-bevel treatment as real buttons. */
+a[class*="rounded-full"][class*="bg-white"]{
+  display: inline-flex;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -2px 5px rgba(0,0,0,.24) inset,
+    0 3px 8px rgba(0,0,0,.3);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+a[class*="rounded-full"][class*="bg-white"]:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -2px 5px rgba(0,0,0,.24) inset,
+    0 8px 18px rgba(0,0,0,.35);
+}
+
+/* Destination / package cards — the individually-clickable
+   GlassCard tiles inside the grid float up on hover, on top of
+   their already-upgraded ambient shadow above. */
+[id^="dest-"]{
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+[id^="dest-"]:hover{
+  transform: translateY(-6px);
+}
+
