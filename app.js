@@ -883,7 +883,7 @@ function closeNotice() {
     var header = h(
       "header", { className: "sticky top-0 z-40 p-3 md:p-4" },
       h(
-        GlassCard, { className: "max-w-[1280px] mx-auto px-4 md:px-6 py-3 flex items-center justify-between" },
+        GlassCard, { className: "kc-header-3d max-w-[1280px] mx-auto px-4 md:px-6 py-3 flex items-center justify-between" },
         h(
           "div", { className: "flex items-center gap-3 cursor-pointer", onClick: function () { goTo("home"); } },
           CONTENT.logoImage

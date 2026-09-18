@@ -268,3 +268,17 @@ input[type="file"]:hover::file-selector-button {
     0 -1px 3px rgba(0,0,0,.2) inset,
     0 2px 6px rgba(0,0,0,.18);
 }
+
+/* ---- Header bar — a stronger, more visible bevel than the default
+   GlassCard shadow, so it reads clearly as raised against busy photo
+   backgrounds and scrolled content behind it. ---- */
+.kc-header-3d{
+  background: rgba(255,255,255,.09) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -10px 18px -14px rgba(0,0,0,.5) inset,
+    0 2px 4px rgba(0,0,0,.3),
+    0 10px 26px rgba(0,0,0,.4) !important;
+}
+
