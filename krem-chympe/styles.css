@@ -27,70 +27,111 @@
 .kc-whatsapp-btn:active{transform:scale(.98)}
 .kc-whatsapp-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none}
 
-/* =====================================================================
-   Wider, 3D sections on phones (added on request)
-   - Sections now stretch almost edge-to-edge, with a small fixed gap
-   - Text inside sections scales up to fill the extra width
-   - GlassCard (every section's card) gets real layered depth
-   ===================================================================== */
-@media (max-width: 767px) {
-  /* Shrink the page's own left/right gutter so every <main> section
-     block reaches almost to the phone's edge. Scoped to <main> only,
-     so buttons/badges elsewhere that also use px-4 are untouched. */
-  main.px-4 {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
+/* ============================================================
+   3D DEPTH SYSTEM
+   Adds real, layered depth to header, nav, footer, buttons and
+   section/card panels: ambient + contact shadows, a glossy top
+   highlight, and lift/press motion on interaction. Written as
+   plain element selectors so it layers on top of the Tailwind
+   utility classes already on each element without editing app.js.
+   ============================================================ */
 
-  /* Give each card a little breathing room from that new edge, and
-     scale its own padding down so it doesn't eat the extra width. */
-  .kc-3d-card {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  .kc-3d-card.p-8,
-  .kc-3d-card.p-10,
-  .kc-3d-card.p-12 { padding: 20px !important; }
-  .kc-3d-card.p-6 { padding: 16px !important; }
-  .kc-3d-card.p-5 { padding: 14px !important; }
-  .kc-3d-card.p-4 { padding: 12px !important; }
-
-  /* Bigger type to match the wider sections. Scoped to headings/body
-     copy inside <section> so nav pills, badges and buttons keep their
-     original, intentionally small sizing. */
-  main h1 { font-size: clamp(30px, 9.5vw, 42px) !important; }
-  main h2 { font-size: clamp(22px, 7.2vw, 28px) !important; }
-  main h3 { font-size: clamp(17px, 5.2vw, 21px) !important; }
-  main p  { font-size: clamp(15px, 4.2vw, 17px) !important; line-height: 1.6 !important; }
+/* Every GlassCard panel (header bar, hero, destination cards,
+   footer, modals, forms...) — richer shadow than the flat single
+   drop-shadow it had: ambient blur + tight contact shadow + a
+   glossy inset line along the top edge + a soft inset shadow
+   along the bottom for volume, so each panel reads as a raised
+   slab rather than a flat translucent rectangle. */
+.shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.2\)\,inset_0_1px_0_rgba\(255\,255\,255\,0\.1\)\]{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 -18px 28px -20px rgba(0,0,0,.55) inset,
+    0 1px 2px rgba(0,0,0,.3),
+    0 4px 10px rgba(0,0,0,.28),
+    0 18px 40px rgba(0,0,0,.4);
 }
 
-/* --- 3D card treatment for every section's GlassCard, all sizes --- */
-.kc-3d-card {
+/* NAV — the pill segmented control gets its own raised, glassy
+   shell, and each link lifts on hover / presses in on click. */
+nav{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 -6px 10px -6px rgba(0,0,0,.4) inset,
+    0 6px 16px rgba(0,0,0,.35);
+}
+nav button{
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+nav button:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,.3);
+}
+nav button:active{
+  transform: translateY(0);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.4);
+}
+
+/* BUTTONS everywhere — raised bevel at rest, lift on hover,
+   press inward on click. Scoped to the box-shadow/transform
+   properties only, so each button's own colors/sizing/borders
+   are untouched. */
+button{
   position: relative;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.16) inset,
-    0 -24px 40px rgba(0, 0, 0, 0.22) inset,
-    0 18px 34px rgba(0, 0, 0, 0.42),
-    0 4px 10px rgba(0, 0, 0, 0.35) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.32) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.35) !important;
-  background-image: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.10) 0%,
-    rgba(255, 255, 255, 0.02) 40%,
-    rgba(0, 0, 0, 0.10) 100%
-  ) !important;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -3px 6px rgba(0,0,0,.24) inset,
+    0 1px 2px rgba(0,0,0,.35),
+    0 3px 8px rgba(0,0,0,.3);
+  transform: translateY(0);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
-.kc-3d-card:active {
-  transform: translateY(1px) scale(0.995);
+button:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -3px 6px rgba(0,0,0,.24) inset,
+    0 3px 6px rgba(0,0,0,.35),
+    0 10px 22px rgba(0,0,0,.4);
+  filter: brightness(1.06);
 }
-@media (hover: hover) {
-  .kc-3d-card:hover {
-    transform: translateY(-4px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.2) inset,
-      0 26px 50px rgba(0, 0, 0, 0.5),
-      0 4px 14px rgba(0, 0, 0, 0.4) !important;
-  }
+button:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.35) inset,
+    0 1px 2px rgba(0,0,0,.25);
+  filter: brightness(.96);
 }
+button:disabled{
+  transform: none;
+  filter: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+/* Round icon-style links (e.g. the footer's Instagram bubble)
+   get the same raised-bevel treatment as real buttons. */
+a[class*="rounded-full"][class*="bg-white"]{
+  display: inline-flex;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -2px 5px rgba(0,0,0,.24) inset,
+    0 3px 8px rgba(0,0,0,.3);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+a[class*="rounded-full"][class*="bg-white"]:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -2px 5px rgba(0,0,0,.24) inset,
+    0 8px 18px rgba(0,0,0,.35);
+}
+
+/* Destination / package cards — the individually-clickable
+   GlassCard tiles inside the grid float up on hover, on top of
+   their already-upgraded ambient shadow above. */
+[id^="dest-"]{
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+[id^="dest-"]:hover{
+  transform: translateY(-6px);
+}
+
