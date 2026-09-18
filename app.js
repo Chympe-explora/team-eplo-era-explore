@@ -80,7 +80,7 @@
   function GlassCard(props) {
     return h(
       "div",
-      { className: "kc-3d-card backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
+      { className: "backdrop-blur-[24px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] " + (props.className || "") },
       props.children
     );
   }
@@ -757,6 +757,33 @@
     useEffect(function () {
       if (window.KCBackgrounds) window.KCBackgrounds.setPage(page);
     }, [page]);
+
+    // Deep-link scroll — e.g. a destination site's "Take me there"
+    // button or its own ERA chat can send a visitor here as
+    // "../index.html#destinations". The browser's own fragment-scroll
+    // only fires once, at the very first paint — long before React has
+    // mounted anything — so it silently finds nothing and does
+    // nothing. This finishes the job: it polls briefly for the element
+    // to show up once mounted, then scrolls to it (smoothly, respecting
+    // each section's scroll-mt-24 offset so it doesn't land under the
+    // fixed header), and gives up quietly if it never appears.
+    useEffect(function () {
+      var hash = window.location.hash;
+      if (!hash || hash.length < 2) return;
+      var id = hash.slice(1);
+      var tries = 0;
+      var timer = setInterval(function () {
+        var el = document.getElementById(id);
+        tries++;
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          clearInterval(timer);
+        } else if (tries > 40) { // ~4s ceiling — element never showed up
+          clearInterval(timer);
+        }
+      }, 100);
+      return function () { clearInterval(timer); };
+    }, []);
 
     // ---- Notice popup: shows once per visitor, closable, admin-resettable ----
     var NOTICE = CONTENT.notice || {};
