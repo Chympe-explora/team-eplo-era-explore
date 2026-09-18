@@ -407,7 +407,7 @@
           "button",
           {
             onClick: props.onDiscover,
-            className: "flex-shrink-0 mx-auto flex flex-col items-center gap-0.5 pb-12 md:pb-6 text-white/90 hover:text-white transition",
+            className: "kc-flat flex-shrink-0 mx-auto flex flex-col items-center gap-0.5 pb-12 md:pb-6 text-white/90 hover:text-white transition",
             style: { marginBottom: "env(safe-area-inset-bottom, 0px)" }
           },
           h("span", { className: "text-[13px] md:text-sm tracking-[0.2em] font-medium" }, hero.discoverLabel || "Discover"),
@@ -1781,7 +1781,7 @@
     var header = h(
       "header", { className: "sticky top-0 z-40 p-3 md:p-4" },
       h(
-        GlassCard, { className: "max-w-[1280px] mx-auto px-4 md:px-6 py-3 flex items-center justify-between" },
+        GlassCard, { className: "kc-header-3d max-w-[1280px] mx-auto px-4 md:px-6 py-3 flex items-center justify-between" },
         h(
           "div", { className: "flex items-center gap-3" },
           CONTENT.logoImage
@@ -1869,13 +1869,13 @@
         )
       ),
       SECTIONS.visitorGuide && VISITOR_GUIDE.cards && VISITOR_GUIDE.cards.length > 0 && h(
-        GlassCard, { className: "p-6 md:p-10" },
+        GlassCard, { className: "kc-flat p-6 md:p-10" },
         h(
           "button",
           {
             type: "button",
             onClick: function () { setVisitorGuideOpen(function (v) { return !v; }); },
-            className: "w-full flex items-center justify-between gap-4 text-left",
+            className: "kc-flat w-full flex items-center justify-between gap-4 text-left",
             "aria-expanded": visitorGuideOpen ? "true" : "false"
           },
           h(
