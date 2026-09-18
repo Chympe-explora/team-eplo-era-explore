@@ -418,7 +418,7 @@
             "button",
             {
               onClick: props.onBookNow,
-              className: "bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full shadow-xl hover:bg-gray-100 hover:shadow-2xl transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
+              className: "kc-cta-3d bg-white text-gray-900 font-bold px-10 md:px-14 py-4 md:py-5 rounded-full hover:bg-gray-100 transition-all duration-200 text-base md:text-lg lg:text-xl whitespace-nowrap"
             },
             bookNowLabel
           )
@@ -432,7 +432,7 @@
           "button",
           {
             onClick: props.onDiscover,
-            className: "flex-shrink-0 mx-auto flex flex-col items-center gap-0.5 pb-12 md:pb-6 text-white/90 hover:text-white transition",
+            className: "kc-flat flex-shrink-0 mx-auto flex flex-col items-center gap-0.5 pb-12 md:pb-6 text-white/90 hover:text-white transition",
             style: { marginBottom: "env(safe-area-inset-bottom, 0px)" }
           },
           h("span", { className: "text-[13px] md:text-sm tracking-[0.2em] font-medium" }, hero.discoverLabel || "Discover"),
@@ -689,7 +689,7 @@
           "div", { className: "grid md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1" },
           reviews.map(function (r) {
             return h(
-              GlassCard, { key: r.id, className: "p-5" },
+              GlassCard, { key: r.id, className: "kc-comment-card p-5" },
               h(
                 "div", { className: "flex items-center justify-between mb-2" },
                 h("span", { className: "font-semibold text-sm" }, r.name),
@@ -1092,13 +1092,13 @@ function closeNotice() {
       "section", { id: "booking", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "booking" }),
       h(
-        GlassCard, { className: "p-8 md:p-12" },
+        GlassCard, { className: "kc-flat p-8 md:p-12" },
         h(
           "button",
           {
             type: "button",
             onClick: function () { setBookingOpen(function (v) { return !v; }); },
-            className: "w-full flex items-center justify-between gap-4 text-left",
+            className: "kc-flat w-full flex items-center justify-between gap-4 text-left",
             "aria-expanded": bookingOpen ? "true" : "false"
           },
           h(

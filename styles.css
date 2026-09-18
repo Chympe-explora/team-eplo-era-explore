@@ -153,3 +153,118 @@ a[class*="rounded-full"][class*="bg-white"]:hover{
   transform: translateY(-6px);
 }
 
+/* ============================================================
+   3D DEPTH SYSTEM — round 2 (targeted fixes + wider coverage)
+   ============================================================ */
+
+/* ---- Opt-out: flattens an element and any buttons/panels inside it.
+   Used on the Discover link and the whole "Why Book Us" panel, which
+   should stay flat instead of picking up the global button/GlassCard
+   bevel below. ---- */
+.kc-flat,
+.kc-flat button,
+.kc-flat > div {
+  box-shadow: none !important;
+}
+.kc-flat,
+.kc-flat button {
+  transform: none !important;
+  filter: none !important;
+}
+.kc-flat:hover,
+.kc-flat button:hover,
+.kc-flat:active,
+.kc-flat button:active {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* ---- Hero CTA ("Explore" / "Book Now") — its own strong bevel. It
+   previously carried Tailwind's shadow-xl/hover:shadow-2xl classes,
+   which — being class selectors — silently outrank the plain `button`
+   element selector above, so this particular button never actually
+   got the raised-bevel look every other button has. ---- */
+.kc-cta-3d {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 -3px 6px rgba(0,0,0,.12) inset,
+    0 2px 4px rgba(0,0,0,.2),
+    0 10px 24px rgba(0,0,0,.35);
+}
+.kc-cta-3d:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 -3px 6px rgba(0,0,0,.12) inset,
+    0 4px 8px rgba(0,0,0,.22),
+    0 16px 34px rgba(0,0,0,.4);
+}
+.kc-cta-3d:active {
+  box-shadow:
+    0 2px 6px rgba(0,0,0,.2) inset,
+    0 1px 2px rgba(0,0,0,.15);
+}
+
+/* ---- WhatsApp / Submit buttons (.kc-whatsapp-btn) — same layered
+   bevel as every other button. Its own class was previously winning
+   over the global button bevel and flattening it to a single soft
+   shadow. Covers: "Submit", "Send via WhatsApp instead", "WhatsApp",
+   "Message Your Guide", "Chat With Admin on WhatsApp", "Back to Home". ---- */
+.kc-whatsapp-btn{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 -3px 6px rgba(0,0,0,.08) inset,
+    0 1px 2px rgba(0,0,0,.15),
+    0 6px 16px rgba(0,0,0,.2);
+}
+.kc-whatsapp-btn:hover{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 -3px 6px rgba(0,0,0,.08) inset,
+    0 3px 6px rgba(0,0,0,.18),
+    0 10px 22px rgba(0,0,0,.25);
+}
+.kc-whatsapp-btn:active{
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.2) inset,
+    0 1px 2px rgba(0,0,0,.15);
+  transform: scale(.98);
+}
+
+/* ---- "Choose File" upload pill (the native file-selector-button
+   inside input[type=file]) — previously completely flat. ---- */
+input[type="file"]::-webkit-file-upload-button,
+input[type="file"]::file-selector-button {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.25) inset,
+    0 -2px 4px rgba(0,0,0,.2) inset,
+    0 2px 6px rgba(0,0,0,.25);
+  transition: box-shadow .16s ease;
+}
+input[type="file"]:hover::-webkit-file-upload-button,
+input[type="file"]:hover::file-selector-button {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.3) inset,
+    0 -2px 4px rgba(0,0,0,.2) inset,
+    0 4px 10px rgba(0,0,0,.3);
+}
+
+/* ---- Visitor comment cards — a touch more contrast than the default
+   GlassCard background so their (already-present) 3D shadow reads
+   clearly against busy photo backgrounds, instead of blending in. ---- */
+.kc-comment-card{
+  background: rgba(255,255,255,.09) !important;
+  border-color: rgba(255,255,255,.18) !important;
+}
+
+/* ---- Extends real depth to the plain bg-white/5 + border/10 "row"
+   panels used throughout the site (people/quantity steppers, radio
+   rows, thali/menu rows, dropdowns) so every section reads as raised,
+   not just the big GlassCard panels and buttons. Excludes anything
+   inside a .kc-flat panel. ---- */
+[class*="bg-white/5"][class*="border-white/10"]:not(.kc-flat){
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.1) inset,
+    0 -1px 3px rgba(0,0,0,.2) inset,
+    0 2px 6px rgba(0,0,0,.18);
+}
