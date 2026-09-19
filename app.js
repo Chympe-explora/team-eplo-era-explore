@@ -1042,25 +1042,25 @@ function closeNotice() {
     var EXP = CONTENT.experiences || { title: "The Experience", blocks: [] };
     function renderBlock(block, i) {
       if (block.type === "heading") {
-        return h("h3", { key: i, className: "text-lg md:text-xl font-semibold text-white pt-2" }, block.text);
+        return h("h3", { key: i, className: "text-lg md:text-3xl font-semibold text-white pt-2" }, block.text);
       }
       if (block.type === "subheading") {
-        return h("div", { key: i, className: "text-white/80 text-[15px] font-medium italic" }, block.text);
+        return h("div", { key: i, className: "text-white/80 text-[15px] md:text-[18px] font-medium italic" }, block.text);
       }
       if (block.type === "paragraph") {
-        return h("p", { key: i, className: "text-[14px] text-white/70 leading-relaxed" }, block.text);
+        return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
       }
       if (block.type === "list") {
         return h(
           "ul", { key: i, className: "space-y-3 pl-1" },
           (block.items || []).map(function (item, j) {
-            return h("li", { key: j, className: "flex gap-2.5 text-[14px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, item));
+            return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, item));
           })
         );
       }
       if (block.type === "quote") {
         return h(
-          "blockquote", { key: i, className: "border-l-2 border-emerald-400/50 pl-4 py-1 italic text-white/85 text-[15px] leading-relaxed" },
+          "blockquote", { key: i, className: "border-l-2 border-emerald-400/50 pl-4 py-1 italic text-white/85 text-[15px] md:text-[18px] leading-relaxed" },
           "\u201C" + block.text + "\u201D",
           block.attribution && h("div", { className: "mt-2 text-[12px] not-italic text-white/50 tracking-wide" }, block.attribution)
         );
@@ -1077,10 +1077,10 @@ function closeNotice() {
       "section", { id: "experiences", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "experiences" }),
       h(
-        GlassCard, { className: "p-6 md:p-10" },
-        h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight text-center" }, EXP.title),
+        GlassCard, { className: "p-4 md:p-10" },
+        h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, EXP.title),
         h(
-          "div", { className: "mt-8 max-w-[720px] mx-auto space-y-5" },
+          "div", { className: "mt-8 max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
           (EXP.blocks || []).map(renderBlock)
         )
       )
@@ -1092,7 +1092,7 @@ function closeNotice() {
       "section", { id: "booking", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "booking" }),
       h(
-        GlassCard, { className: "kc-flat p-8 md:p-12" },
+        GlassCard, { className: "kc-flat p-4 md:p-12" },
         h(
           "button",
           {
@@ -1118,9 +1118,9 @@ function closeNotice() {
           },
           h(
             "div", { className: "overflow-hidden" },
-            BOOKING.intro && h("p", { className: "mt-4 text-white/60 text-sm leading-relaxed text-center max-w-[640px] mx-auto" }, BOOKING.intro),
+            BOOKING.intro && h("p", { className: "mt-4 text-white/60 text-sm leading-relaxed text-center max-w-[640px] md:max-w-[960px] mx-auto" }, BOOKING.intro),
             h(
-              "div", { className: "mt-10 space-y-6 max-w-[720px] mx-auto" },
+              "div", { className: "mt-10 space-y-6 max-w-[720px] md:max-w-[1120px] mx-auto" },
               (BOOKING.reasons || []).map(function (r, i) {
                 return h(
                   "div", { key: i, className: "pt-6 border-t border-white/10 first:pt-0 first:border-t-0" },
@@ -1135,7 +1135,7 @@ function closeNotice() {
               })
             ),
             BOOKING.closing && BOOKING.closing.length > 0 && h(
-              "div", { className: "mt-10 pt-8 border-t border-white/10 max-w-[640px] mx-auto text-center" },
+              "div", { className: "mt-10 pt-8 border-t border-white/10 max-w-[640px] md:max-w-[960px] mx-auto text-center" },
               BOOKING.closing.map(function (line, i) {
                 return h("p", { key: i, className: "text-white/70 text-sm leading-relaxed mt-2" }, line);
               })
@@ -1151,22 +1151,22 @@ function closeNotice() {
       "section", { id: "about", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "about" }),
       h(
-        GlassCard, { className: "p-8 md:p-12" },
-        h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight text-center" }, ABOUT.title),
+        GlassCard, { className: "p-4 md:p-12" },
+        h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, ABOUT.title),
         h(
-          "div", { className: "mt-8 max-w-[720px] mx-auto space-y-5" },
+          "div", { className: "mt-8 max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
           (ABOUT.blocks || []).map(function (block, i) {
             if (block.type === "heading") {
-              return h("h3", { key: i, className: "text-lg md:text-xl font-semibold text-white pt-2" }, block.text);
+              return h("h3", { key: i, className: "text-lg md:text-3xl font-semibold text-white pt-2" }, block.text);
             }
             if (block.type === "paragraph") {
-              return h("p", { key: i, className: "text-[14px] text-white/70 leading-relaxed" }, block.text);
+              return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
             }
             if (block.type === "list") {
               return h(
                 "ul", { key: i, className: "space-y-3 pl-1" },
                 (block.items || []).map(function (item, j) {
-                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] text-white/70 leading-relaxed" }, h("span", null, item));
+                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", null, item));
                 })
               );
             }
