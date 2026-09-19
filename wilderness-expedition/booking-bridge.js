@@ -149,6 +149,50 @@ window.KCBridge = (function () {
     }).then(r => r.json()).catch(() => ({ ok: false, error: "network error" }));
   }
 
+  // Call once a visitor with a CONFIRMED booking asks for a refund (see
+  // the "Request a Refund" button on the booking confirmation page).
+  // Sends a fresh Telegram message with Approve/Deny buttons — see
+  // POST /api/refund-request on the backend. Returns
+  // { ok, bookingId, refundStatus } — refundStatus is "requested" on
+  // success (or already "requested"/"approved"/"denied" if called
+  // again on a booking that already has an open/settled request).
+  function requestRefund(bookingId, reason) {
+    if (!consentOk()) {
+      return Promise.resolve({ ok: false, error: "consent required" });
+    }
+    return fetch(`${API_BASE}/api/refund-request`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId, siteId: SITE_ID, bookingId, reason }),
+    }).then(r => r.json()).catch(() => ({ ok: false, error: "network error" }));
+  }
+
+  // Poll refund status. onUpdate(status) called whenever it changes —
+  // status is one of "none" | "requested" | "approved" | "denied" (see
+  // GET /api/refund-status/:bookingId on the backend). Mirrors
+  // watchStatus below; returns a stop() function the same way.
+  function watchRefundStatus(bookingId, onUpdate) {
+    let stopped = false;
+    let last = null;
+    let timer = null;
+    async function poll() {
+      if (stopped) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/refund-status/${bookingId}`);
+        const { refundStatus } = await r.json();
+        if (refundStatus && refundStatus !== last) {
+          last = refundStatus;
+          onUpdate(refundStatus);
+        }
+      } catch (e) {}
+      if (!stopped && last !== "approved" && last !== "denied") {
+        timer = setTimeout(poll, document.hidden ? 5000 : 1500);
+      }
+    }
+    poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }
+
   // Poll status. onUpdate(status, meta) called whenever the status
   // changes — meta is { guideName, guidePhone } once a guide has
   // confirmed (see handleStatusCheck on the backend), so the visitor's
@@ -209,7 +253,7 @@ window.KCBridge = (function () {
     return modeCache;
   }
 
-  return { getMode, trackVisit, trackTap, sendDraft, notifyPayNow, uploadReceipt, submitBooking, watchStatus, sessionId };
+  return { getMode, trackVisit, trackTap, sendDraft, notifyPayNow, uploadReceipt, submitBooking, watchStatus, requestRefund, watchRefundStatus, sessionId };
 })();
 
 // Fire the silent visit ping only once the visitor has accepted data

@@ -1090,6 +1090,15 @@
     }, [trackingId, bookingStatus, receiptLocked, noResponse]);
 
     // ---- Refund request (visitor-initiated, only once confirmed) --------
+    // Backend now confirmed to have a real refund endpoint (POST
+    // /api/refund-request + GET /api/refund-status/:id, with Approve/Deny
+    // buttons sent to Telegram — see teamexploera-backend's booking.js).
+    // The only missing piece was booking-bridge.js never implementing the
+    // matching requestRefund()/watchRefundStatus() client calls, so this
+    // threw (calling an undefined function) and got stuck on "Sending…"
+    // forever. Now that booking-bridge.js has been updated with those two
+    // functions, this goes back to the real automatic flow instead of the
+    // WhatsApp-link stand-in from before.
     var refundStatusState = useState("none"); var refundStatus = refundStatusState[0], setRefundStatus = refundStatusState[1];
     var refundBusyState = useState(false); var refundBusy = refundBusyState[0], setRefundBusy = refundBusyState[1];
     var refundErrorState = useState(""); var refundError = refundErrorState[0], setRefundError = refundErrorState[1];
@@ -1116,6 +1125,16 @@
     useEffect(function () {
       return function () { if (stopRefundWatchRef.current) stopRefundWatchRef.current(); };
     }, []);
+
+    // Fallback link if the automatic request ever errors out (network
+    // issue, etc.) — same wa.me pattern as "Message Your Guide", so the
+    // visitor always has a way through even if the API call fails.
+    function refundWhatsappLink() {
+      var RW = REFUND_POLICY.whatsapp || {};
+      var ref = bookingCode || trackingId || "";
+      var msg = fill(RW.message || "Hi, I'd like to request a refund for booking #{referenceNumber}.", { referenceNumber: ref });
+      return "https://wa.me/" + waNumber(CONTENT.whatsappNumber) + "?text=" + encodeURIComponent(msg);
+    }
 
     // Silently mirror the in-progress form to the guide's Telegram as the
     // visitor fills it in. Fails silently if the bridge/backend is
@@ -2666,7 +2685,7 @@
           ),
           refundStatus === "requested" && h(
             "div", { className: "px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-200 text-sm text-center" },
-            "Refund requested — waiting for your guide to review it."
+            "Refund request sent — we will notify you once it's reviewed."
           ),
           refundStatus === "approved" && h(
             "div", { className: "px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 text-sm text-center" },
@@ -2676,7 +2695,11 @@
             "div", { className: "px-4 py-3 rounded-xl bg-red-500/10 border border-red-400/30 text-red-300 text-sm text-center" },
             "Refund request declined. Message your guide on WhatsApp if you'd like to discuss it."
           ),
-          refundError && h("p", { className: "mt-2 text-amber-300 text-xs text-center" }, refundError)
+          refundError && h(
+            "div", { className: "mt-2 text-center" },
+            h("p", { className: "text-amber-300 text-xs" }, refundError),
+            h("a", { href: refundWhatsappLink(), target: "_blank", rel: "noopener", className: "text-xs underline text-white/70 hover:text-white" }, "Or message us directly on WhatsApp")
+          )
         ),
       (bookingStatus === "pending" && isBookingLocked())
         ? h("div", { className: "mt-4 text-[12px] text-white/50 leading-relaxed text-center" }, "Since you've already sent your payment receipt, we're keeping this booking open until your guide or our admin confirms or rejects it — use WhatsApp above if you need anything in the meantime.")
