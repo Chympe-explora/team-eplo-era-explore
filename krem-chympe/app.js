@@ -1430,6 +1430,11 @@
 
       if (!pkg) { setSubmitError("Please choose a package before submitting."); return false; }
       if (!contact.name || !contact.whatsapp || !contact.date) { setSubmitError("Please fill in your name, WhatsApp number, and date first."); return false; }
+      // Belt & braces alongside the button's own `disabled` (which already
+      // keeps this untappable until a receipt is uploaded) — a visitor
+      // must upload a payment receipt/screenshot before a booking can be
+      // submitted at all.
+      if (!receiptOk) { setSubmitError("Please upload your payment receipt/screenshot before submitting."); return false; }
       setSubmitError("");
 
       // Send the finished booking to the guide's Telegram FIRST, and only
@@ -2556,7 +2561,8 @@
               h("div", { className: "text-[11px] text-white/40 mt-2" }, t("receiptCameraHint", "If this opens your camera instead of your gallery, open this page in Chrome/Safari (not inside the Telegram/Instagram/Facebook app) and try again.")),
               receiptUploading && h("div", { className: "text-[11px] text-white/60 mt-2" }, t("receiptUploadingText", "⏳ Uploading receipt…")),
               receiptOk && h("div", { className: "text-[11px] text-emerald-300 mt-2" }, t("receiptReceivedText", "✅ Receipt received.")),
-              receiptError && h("div", { className: "text-[11px] text-amber-300 mt-2" }, receiptError)
+              receiptError && h("div", { className: "text-[11px] text-amber-300 mt-2" }, receiptError),
+              !receiptOk && !receiptUploading && h("div", { className: "text-[11px] text-red-300 mt-2" }, t("receiptRequiredHelperText", "Please upload your payment receipt/screenshot to submit."))
             ),
             submitError && h(
               "div", { className: "space-y-2" },
