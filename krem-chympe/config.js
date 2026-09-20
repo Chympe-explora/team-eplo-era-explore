@@ -1022,7 +1022,7 @@
         upiQrPlaceholderLabel: "UPI QR",
         advancePaymentLabel: "Advance Payment (Min ",
         payInstructionsText: "Pay using any of the methods above, then tap Submit — when you are ready to chat with your tour guide.",
-        uploadReceiptLabel: "Upload Payment Receipt / Screenshot (optional)",
+        uploadReceiptLabel: "Upload Payment Receipt / Screenshot (required)",
         receiptCameraHint: "If this opens your camera instead of your gallery, open this page in Chrome/Safari (not inside the Telegram/Instagram/Facebook app) and try again.",
         receiptUploadingText: "⏳ Uploading receipt…",
         receiptReceivedText: "✅ Receipt received.",
