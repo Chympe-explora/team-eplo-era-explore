@@ -1429,6 +1429,11 @@
 
       if (!pkg) { setSubmitError("Please choose a package before submitting."); return false; }
       if (!contact.name || !contact.whatsapp || !contact.date) { setSubmitError("Please fill in your name, WhatsApp number, and date first."); return false; }
+      // Belt & braces alongside the button's own `disabled` (which already
+      // keeps this untappable until a receipt is uploaded) — a visitor
+      // must upload a payment receipt/screenshot before a booking can be
+      // submitted at all.
+      if (!receiptOk) { setSubmitError("Please upload your payment receipt/screenshot before submitting."); return false; }
       setSubmitError("");
 
       // Send the finished booking to the guide's Telegram FIRST, and only
@@ -2535,7 +2540,7 @@
             ),
             h(
               GlassCard, { className: "p-4 !rounded-[16px]" },
-              h("label", { className: "text-xs text-white/60 block mb-2" }, "Upload Payment Receipt / Screenshot (optional)"),
+              h("label", { className: "text-xs text-white/60 block mb-2" }, "Upload Payment Receipt / Screenshot (required)"),
               h("input", {
                 type: "file", accept: "image/*",
                 onChange: function (e) { handleReceiptUpload(e.target.files && e.target.files[0]); e.target.value = ""; },
@@ -2544,7 +2549,8 @@
               h("div", { className: "text-[11px] text-white/40 mt-2" }, "If this opens your camera instead of your gallery, open this page in Chrome/Safari (not inside the Telegram/Instagram/Facebook app) and try again."),
               receiptUploading && h("div", { className: "text-[11px] text-white/60 mt-2" }, "⏳ Uploading receipt…"),
               receiptOk && h("div", { className: "text-[11px] text-emerald-300 mt-2" }, "✅ Receipt received."),
-              receiptError && h("div", { className: "text-[11px] text-amber-300 mt-2" }, receiptError)
+              receiptError && h("div", { className: "text-[11px] text-amber-300 mt-2" }, receiptError),
+              !receiptOk && !receiptUploading && h("div", { className: "text-[11px] text-red-300 mt-2" }, "Please upload your payment receipt/screenshot to submit.")
             ),
             submitError && h(
               "div", { className: "space-y-2" },
@@ -2557,7 +2563,7 @@
               // inside submitBookingViaWhatsApp itself: once a booking is
               // in flight or already sitting pending with the guide, the
               // button is visibly disabled too, not just logically blocked.
-              disabled: advance < minAdvance || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
+              disabled: advance < minAdvance || !receiptOk || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
               className: "kc-whatsapp-btn"
             }, h(Phone, { size: 18 }), isSubmitting ? t("sendingBookingButton", "Sending…") : t("submitBookingButton", "Submit"))
           )
