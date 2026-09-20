@@ -2547,7 +2547,7 @@
             ),
             h(
               GlassCard, { className: "p-4 !rounded-[16px]" },
-              h("label", { className: "text-xs text-white/60 block mb-2" }, t("uploadReceiptLabel", "Upload Payment Receipt / Screenshot (optional)")),
+              h("label", { className: "text-xs text-white/60 block mb-2" }, t("uploadReceiptLabel", "Upload Payment Receipt / Screenshot (required)")),
               h("input", {
                 type: "file", accept: "image/*",
                 onChange: function (e) { handleReceiptUpload(e.target.files && e.target.files[0]); e.target.value = ""; },
@@ -2569,7 +2569,7 @@
               // inside submitBookingViaWhatsApp itself: once a booking is
               // in flight or already sitting pending with the guide, the
               // button is visibly disabled too, not just logically blocked.
-              disabled: advance < minAdvance || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
+              disabled: advance < minAdvance || !receiptOk || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
               className: "kc-whatsapp-btn"
             }, h(Phone, { size: 18 }), isSubmitting ? t("sendingBookingButton", "Sending…") : t("submitBookingButton", "Submit"))
           )
