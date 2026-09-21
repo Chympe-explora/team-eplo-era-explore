@@ -924,6 +924,21 @@
     var advanceState = useState(""); var advance = advanceState[0], setAdvance = advanceState[1];
     var payTabState = useState("qr"); var payTab = payTabState[0], setPayTab = payTabState[1];
     var copiedState = useState(""); var copied = copiedState[0], setCopied = copiedState[1];
+    // 🎁 Referral/discount code — typed on the pricing page, checked
+    // against the backend (admin-generated codes, see referrals.js),
+    // then applied on top of whatever's already being charged.
+    var refCodeState = useState(""); var referralCode = refCodeState[0], setReferralCode = refCodeState[1];
+    var refAppliedState = useState(null); var referralApplied = refAppliedState[0], setReferralApplied = refAppliedState[1]; // { code, percent, flat, visitorName } | null
+    var refCheckingState = useState(false); var referralChecking = refCheckingState[0], setReferralChecking = refCheckingState[1];
+    var refErrorState = useState(""); var referralError = refErrorState[0], setReferralError = refErrorState[1];
+    // Whether the visitor's own details (mobile number + name, filled in
+    // before the pricing page) match a live referral card. The code box
+    // stays hidden until this is true — see the effect below.
+    var refEligibleState = useState(false); var referralEligible = refEligibleState[0], setReferralEligible = refEligibleState[1];
+    // The code this booking actually used, as confirmed by the backend
+    // ({ code, discount, coveredPeople, totalPersons }) — shown on the
+    // confirmed / rejected screens and included in the WhatsApp texts.
+    var refUsedState = useState(null); var referralUsed = refUsedState[0], setReferralUsed = refUsedState[1];
 
     // ---- WhatsApp booking submission (no backend — submitting a booking
     // just opens WhatsApp with everything prefilled) ----------------------
@@ -995,6 +1010,7 @@
     function handleStatusUpdate(status, meta) {
       setBookingStatus(status);
       if (meta) setGuideContact({ name: meta.guideName || "", phone: meta.guidePhone || "" });
+      if (meta && meta.referral) setReferralUsed(meta.referral);
       if (status === "confirmed" || status === "cancelled") {
         setReceiptLocked(false);
         try { localStorage.removeItem(ACTIVE_BOOKING_KEY); } catch (e) {}
@@ -1458,6 +1474,13 @@
         // random assignment. See guides.js on the backend.
         packageKey: pkg,
         reference: visitorCodeRef.current, advance: advance, total: grandTotal, balance: balanceLeft,
+        referralCode: referralApplied ? referralApplied.code : "",
+        // What the discount was worked out from — the backend re-checks
+        // the code against this visitor's mobile number and refuses a
+        // discount bigger than the card allows.
+        referralDiscount: referralApplied ? referralDiscountAmount : 0,
+        referralSubtotal: referralApplied ? subtotalBeforeReferral : 0,
+        referralPersons: referralApplied ? referralTotalPersons : 0,
         paymentMethod: payTab === "qr" ? "QR Code" : payTab === "upi" ? "UPI" : "Bank Transfer",
         // Full pretty-formatted text (ref no, itemized breakdown, totals —
         // identical to the WhatsApp message) so the Telegram booking
@@ -1469,6 +1492,7 @@
         setIsSubmitting(false);
         if (res && res.ok && res.bookingId) {
           setBookingCode(visitorCodeRef.current);
+          if (res.referral) setReferralUsed(res.referral);
           setSubmitted(true);
           saveBookingRecord(visitorCodeRef.current);
 
@@ -1508,7 +1532,17 @@
           if (stopWatchRef.current) stopWatchRef.current();
           stopWatchRef.current = window.KCBridge.watchStatus(res.bookingId, handleStatusUpdate);
         } else {
-          setSubmitError("Your booking couldn't be sent to the admin (" + ((res && res.error) || "unknown error") + "). Please use the WhatsApp button below instead.");
+          if (res && res.referralError) {
+            // The backend refused the referral code (already used by
+            // another booking, or it no longer matches) — nothing was
+            // sent to the admin. Take the code off so the total is the
+            // regular price again, and say so plainly.
+            setReferralApplied(null);
+            setReferralCode("");
+            setSubmitError((res.error || "The referral code couldn't be applied.") + " It has been removed, so your total is now the regular price — please message the admin on WhatsApp below and they'll sort it out.");
+          } else {
+            setSubmitError("Your booking couldn't be sent to the admin (" + ((res && res.error) || "unknown error") + "). Please use the WhatsApp button below instead.");
+          }
         }
       });
       return true;
@@ -1555,8 +1589,116 @@
       return { grandTotal: 0 };
     }, [pkg, sharedTourForm, privateForm]);
 
-    var grandTotal = totals.grandTotal || 0;
+    var subtotalBeforeReferral = totals.grandTotal || 0;
+
+    // A referral code discounts only as many guests as its card was made
+    // for. A card for 1 person on a booking for 3 discounts ONE person's
+    // share of the bill; the other two pay the normal price. Flat-₹ codes
+    // are capped at that share too. This is the same formula as
+    // computeReferralDiscount() in the backend's referrals.js — the
+    // backend re-checks it on submit, so keep the two identical.
+    var referralTotalPersons = pkg === "sharedTour" ? (totals.payingPersons || 0) : pkg === "privatePackage" ? (totals.people || 0) : 0;
+    var referralCoveredPeople = 0;
+    var referralDiscountAmount = 0;
+    if (referralApplied && referralTotalPersons > 0 && subtotalBeforeReferral > 0) {
+      referralCoveredPeople = Math.min(Math.max(1, Number(referralApplied.cardPeople) || 1), referralTotalPersons);
+      var referralBase = (subtotalBeforeReferral * referralCoveredPeople) / referralTotalPersons;
+      if (referralApplied.percent) referralDiscountAmount = Math.round((referralBase * referralApplied.percent) / 100);
+      else if (referralApplied.flat) referralDiscountAmount = Math.min(Number(referralApplied.flat), Math.round(referralBase));
+      referralDiscountAmount = Math.max(0, Math.min(referralDiscountAmount, subtotalBeforeReferral));
+    }
+    var grandTotal = Math.max(0, subtotalBeforeReferral - referralDiscountAmount);
     var balanceLeft = Math.max(0, grandTotal - Number(advance || 0));
+
+    // "🎁 Referral Code PRIYA482 (1 of 3 guests)" — the partial-cover
+    // suffix only appears when the card covers fewer guests than booked.
+    function referralInvoiceLabel() {
+      if (!referralApplied) return "";
+      var label = "🎁 Referral Code " + referralApplied.code;
+      if (referralCoveredPeople > 0 && referralCoveredPeople < referralTotalPersons) {
+        label += " (" + referralCoveredPeople + " of " + referralTotalPersons + " guest" + (referralTotalPersons === 1 ? "" : "s") + ")";
+      }
+      return label;
+    }
+
+    // One line for the WhatsApp texts sent on confirmation / rejection,
+    // so the guide or admin can see this booking used a code.
+    function referralWhatsappLine() {
+      if (!referralUsed) return "";
+      var line = "🎁 Referral code: " + referralUsed.code + " — " + money(referralUsed.discount) + " discount applied";
+      if (referralUsed.totalPersons > referralUsed.coveredPeople) line += " (" + referralUsed.coveredPeople + " of " + referralUsed.totalPersons + " guests)";
+      return line + "\n";
+    }
+
+    // Checks a typed code against the backend the moment the visitor
+    // taps Apply. The backend only accepts it together with the SAME
+    // mobile number + name the visitor filled in on the booking form
+    // (the code is tied to one guest), and only if it hasn't been used.
+    function applyReferralCode() {
+      var code = (referralCode || "").trim();
+      if (!code) return;
+      if (!window.KCBridge || typeof window.KCBridge.validateReferralCode !== "function") {
+        setReferralError("Couldn't reach the booking system to check that code.");
+        return;
+      }
+      setReferralChecking(true);
+      setReferralError("");
+      window.KCBridge.validateReferralCode({ code: code, mobile: contact.whatsapp, name: contact.name }).then(function (res) {
+        setReferralChecking(false);
+        if (res && res.ok && res.valid) {
+          setReferralApplied({ code: res.code, percent: res.percent, flat: res.flat, cardPeople: res.cardPeople || 1 });
+          setReferralError("");
+        } else {
+          setReferralApplied(null);
+          if (res && res.reason === "used") setReferralError("This referral code has already been used.");
+          else if (res && res.error === "consent required") setReferralError("Please accept the data-consent notice first so we can check your code.");
+          else if (res && res.ok === false) setReferralError("Couldn't check that code right now. Please try again.");
+          else setReferralError("That code isn't valid for the details you entered.");
+        }
+      });
+    }
+
+    function removeReferralCode() {
+      setReferralApplied(null);
+      setReferralCode("");
+      setReferralError("");
+    }
+
+    // The code box only appears once the visitor reaches the pricing page
+    // AND the name + mobile number they filled in match a live referral
+    // card for this site. Nothing about the card is revealed to anyone
+    // else — the backend answers with a bare yes/no.
+    useEffect(function () {
+      if (page !== 4 || !contact.whatsapp || !contact.name || !window.KCBridge || typeof window.KCBridge.checkReferralEligibility !== "function") {
+        setReferralEligible(false);
+        return;
+      }
+      var cancelled = false;
+      var timer = setTimeout(function () {
+        window.KCBridge.checkReferralEligibility({ mobile: contact.whatsapp, name: contact.name }).then(function (res) {
+          if (!cancelled) setReferralEligible(!!(res && res.ok && res.eligible));
+        });
+      }, 250);
+      return function () { cancelled = true; clearTimeout(timer); };
+    }, [page, contact.whatsapp, contact.name]);
+
+    // A code is tied to the details it was checked against — if the
+    // visitor changes their mobile number or name afterwards, it comes off.
+    useEffect(function () {
+      setReferralApplied(null);
+      setReferralCode("");
+      setReferralError("");
+    }, [contact.whatsapp, contact.name]);
+
+    // Starting over from the home page clears any code state.
+    useEffect(function () {
+      if (page === 1) {
+        setReferralApplied(null);
+        setReferralCode("");
+        setReferralError("");
+        setReferralUsed(null);
+      }
+    }, [page]);
 
     function copyToClipboard(text, key) {
       navigator.clipboard.writeText(text);
@@ -1583,6 +1725,7 @@
         }
         (totals.lunchLines || []).forEach(function (l) { if (l.qty > 0) stLines.push([l.name + " x" + l.qty, money(l.cost)]); });
         if (totals.childFeeCost > 0) stLines.push([t("lifeJacketFeeLabel", "Life Jacket & Entry Fee") + " (" + totals.freeChildren + " " + t("freeChildWord", "free child") + (totals.freeChildren === 1 ? "" : "ren") + ")", money(totals.childFeeCost)]);
+        if (referralApplied) stLines.push([referralInvoiceLabel(), "-" + money(referralDiscountAmount)]);
         return stLines;
       }
       if (pkg === "privatePackage") {
@@ -1601,6 +1744,7 @@
           ppLines.push([t("overnightGuideMandatoryLabel", "Overnight Guide (mandatory)"), money(totals.overnightGuideCost)]);
           totals.bambooLines.forEach(function (l) { if (l.qty > 0) ppLines.push([l.name + " x" + l.qty, money(l.cost)]); });
         }
+        if (referralApplied) ppLines.push([referralInvoiceLabel(), "-" + money(referralDiscountAmount)]);
         return ppLines;
       }
       if (pkg === "guideOnly") {
@@ -1666,7 +1810,8 @@
         "Hi " + (guideContact.name || "there") + "! This is " + contact.name + ".\n\n" +
         "🔑 Booking Code: " + (trackingId || "—") + "\n" +
         "📅 Visit: " + formatDate(contact.date) + "\n" +
-        "🎒 Package: " + packageLabel + "\n\n" +
+        "🎒 Package: " + packageLabel + "\n" +
+        referralWhatsappLine() + "\n" +
         "Just confirming — looking forward to it!";
     }
 
@@ -1696,7 +1841,8 @@
         "🔑 Booking Code: " + (trackingId || "—") + "\n" +
         "👤 Name: " + contact.name + "\n" +
         "📅 Visit: " + formatDate(contact.date) + "\n" +
-        "🎒 Package: " + packageLabel + "\n\n" +
+        "🎒 Package: " + packageLabel + "\n" +
+        referralWhatsappLine() + "\n" +
         "Could you please check on this for me? Thank you!";
       return "https://wa.me/" + waNumber(CONTENT.whatsappNumber) + "?text=" + encodeURIComponent(msg);
     }
@@ -1716,7 +1862,8 @@
         "🔑 Booking Code: " + (trackingId || "—") + "\n" +
         "👤 Name: " + contact.name + "\n" +
         "📅 Visit: " + formatDate(contact.date) + "\n" +
-        "🎒 Package: " + packageLabel + "\n\n" +
+        "🎒 Package: " + packageLabel + "\n" +
+        referralWhatsappLine() + "\n" +
         "Thank you!";
       return "https://wa.me/" + waNumber(CONTENT.whatsappNumber) + "?text=" + encodeURIComponent(msg);
     }
@@ -2464,6 +2611,35 @@
         h(
           GlassCard, { className: "p-6 h-fit sticky top-24" },
           h("h4", { className: "font-semibold" }, t("totalCalculator", "Total Calculator")),
+          (referralEligible || referralApplied) && referralTotalPersons > 0 && h(
+            "div", { className: "mt-4" },
+            h("span", { className: "text-xs text-white/60" }, "Referral / Discount Code"),
+            referralApplied
+              ? h(
+                  "div", { className: "mt-2 flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-400/30" },
+                  h("span", { className: "text-[13px] text-emerald-400" }, "🎁 " + referralApplied.code + " applied — save " + money(referralDiscountAmount)),
+                  h("button", { onClick: removeReferralCode, className: "text-white/40 hover:text-white text-xs" }, "Remove")
+                )
+              : h(
+                  "div", { className: "mt-2 flex gap-2" },
+                  h("input", {
+                    value: referralCode,
+                    onChange: function (e) { setReferralCode(e.target.value); },
+                    placeholder: "Enter code",
+                    className: "flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 outline-none focus:border-emerald-400/50 text-sm"
+                  }),
+                  h("button", {
+                    onClick: applyReferralCode,
+                    disabled: referralChecking || !referralCode.trim(),
+                    className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-sm font-medium"
+                  }, referralChecking ? "Checking…" : "Apply")
+                ),
+            referralError && h("div", { className: "mt-2 text-[11px] text-red-400" }, referralError),
+            referralApplied && referralCoveredPeople > 0 && referralCoveredPeople < referralTotalPersons && h(
+              "div", { className: "mt-2 text-[11px] text-white/50" },
+              "This code covers " + referralCoveredPeople + " of your " + referralTotalPersons + " guest" + (referralTotalPersons === 1 ? "" : "s") + " — the rest are charged the regular price."
+            )
+          ),
           h("div", { className: "mt-4 flex justify-between font-bold text-lg" }, h("span", null, t("totalAmount", "Total Amount")), h("span", null, money(grandTotal))),
           h("button", { onClick: handlePayNowTapped, className: "mt-4 w-full bg-[#2E8B57] hover:bg-[#257a4b] py-3 rounded-full font-semibold" }, t("payNow", "Pay Now")),
           h("div", { className: "text-[11px] text-white/40 text-center mt-2" }, (CONTENT.payment || {}).advanceNote)
@@ -2660,6 +2836,12 @@
       bookingCode && h(
         "div", { className: "mt-4 inline-block px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/80 text-sm font-mono" },
         t("referenceLabel", "Reference: #"), bookingCode
+      ),
+      referralUsed && h(
+        "div", { className: "mt-4 mx-auto max-w-sm px-4 py-3 rounded-xl text-[13px] leading-relaxed border " + (bookingStatus === "cancelled" ? "bg-amber-500/10 border-amber-400/30 text-amber-200" : "bg-emerald-500/10 border-emerald-400/30 text-emerald-300") },
+        "🎁 This booking used referral code ", h("span", { className: "font-mono font-semibold" }, referralUsed.code),
+        " and got " + money(referralUsed.discount) + " off" + (referralUsed.totalPersons > referralUsed.coveredPeople ? " (" + referralUsed.coveredPeople + " of " + referralUsed.totalPersons + " guests)" : "") + ".",
+        bookingStatus === "cancelled" && h("div", { className: "mt-1 text-[11px] text-amber-200/80" }, "The code is now expired — tell our admin on WhatsApp and they'll help sort it out.")
       ),
       submitError && h("p", { className: "mt-3 text-amber-300 text-xs" }, submitError),
       h(
