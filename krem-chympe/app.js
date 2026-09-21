@@ -1481,6 +1481,7 @@
         referralDiscount: referralApplied ? referralDiscountAmount : 0,
         referralSubtotal: referralApplied ? subtotalBeforeReferral : 0,
         referralPersons: referralApplied ? referralTotalPersons : 0,
+        referralExcluded: referralApplied ? referralExcludedAmount : 0,
         paymentMethod: payTab === "qr" ? "QR Code" : payTab === "upi" ? "UPI" : "Bank Transfer",
         // Full pretty-formatted text (ref no, itemized breakdown, totals —
         // identical to the WhatsApp message) so the Telegram booking
@@ -1600,9 +1601,15 @@
     var referralTotalPersons = pkg === "sharedTour" ? (totals.payingPersons || 0) : pkg === "privatePackage" ? (totals.people || 0) : 0;
     var referralCoveredPeople = 0;
     var referralDiscountAmount = 0;
+    var referralBase = 0;
+    var referralExcludedAmount = (referralApplied && pkg === "privatePackage" && !referralApplied.includeFourByFour)
+      ? Math.min(Number(totals.jeepCost) || 0, subtotalBeforeReferral) : 0;
     if (referralApplied && referralTotalPersons > 0 && subtotalBeforeReferral > 0) {
       referralCoveredPeople = Math.min(Math.max(1, Number(referralApplied.cardPeople) || 1), referralTotalPersons);
-      var referralBase = (subtotalBeforeReferral * referralCoveredPeople) / referralTotalPersons;
+      // 4x4 jeep (a per-GROUP charge) is left out of the discountable amount
+      // unless the admin ticked "include 4x4" on the card. Same rule as the
+      // backend's computeReferralDiscount() `excluded` argument.
+      referralBase = (Math.max(0, subtotalBeforeReferral - referralExcludedAmount) * referralCoveredPeople) / referralTotalPersons;
       if (referralApplied.percent) referralDiscountAmount = Math.round((referralBase * referralApplied.percent) / 100);
       else if (referralApplied.flat) referralDiscountAmount = Math.min(Number(referralApplied.flat), Math.round(referralBase));
       referralDiscountAmount = Math.max(0, Math.min(referralDiscountAmount, subtotalBeforeReferral));
@@ -1646,7 +1653,7 @@
       window.KCBridge.validateReferralCode({ code: code, mobile: contact.whatsapp, name: contact.name }).then(function (res) {
         setReferralChecking(false);
         if (res && res.ok && res.valid) {
-          setReferralApplied({ code: res.code, percent: res.percent, flat: res.flat, cardPeople: res.cardPeople || 1 });
+          setReferralApplied({ code: res.code, percent: res.percent, flat: res.flat, cardPeople: res.cardPeople || 1, includeFourByFour: !!res.includeFourByFour });
           setReferralError("");
         } else {
           setReferralApplied(null);
@@ -2635,6 +2642,10 @@
                   }, referralChecking ? "Checking…" : "Apply")
                 ),
             referralError && h("div", { className: "mt-2 text-[11px] text-red-400" }, referralError),
+            referralApplied && referralExcludedAmount > 0 && h(
+              "div", { className: "mt-2 text-[11px] text-white/50" },
+              "The 4x4 jeep (" + money(referralExcludedAmount) + ") isn't included in the discount."
+            ),
             referralApplied && referralCoveredPeople > 0 && referralCoveredPeople < referralTotalPersons && h(
               "div", { className: "mt-2 text-[11px] text-white/50" },
               "This code covers " + referralCoveredPeople + " of your " + referralTotalPersons + " guest" + (referralTotalPersons === 1 ? "" : "s") + " — the rest are charged the regular price."
