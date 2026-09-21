@@ -213,10 +213,10 @@ window.KCBridge = (function () {
       polls++;
       try {
         const r = await fetch(`${API_BASE}/api/status/${bookingId}`);
-        const { status, guideName, guidePhone } = await r.json();
+        const { status, guideName, guidePhone, referral } = await r.json();
         if (status && status !== last) {
           last = status;
-          onUpdate(status, { guideName: guideName || "", guidePhone: guidePhone || "" });
+          onUpdate(status, { guideName: guideName || "", guidePhone: guidePhone || "", referral: referral || null });
         }
       } catch (e) {}
       if (!stopped && last !== "confirmed" && last !== "cancelled") {
@@ -253,7 +253,43 @@ window.KCBridge = (function () {
     return modeCache;
   }
 
-  return { getMode, trackVisit, trackTap, sendDraft, notifyPayNow, uploadReceipt, submitBooking, watchStatus, requestRefund, watchRefundStatus, sessionId };
+  // 🎁 Referral / discount codes — admin-generated, single-use, tied to
+  // ONE guest's mobile number (see referrals.js on the backend).
+  //
+  //   checkReferralEligibility({ mobile, name })
+  //     -> { ok, eligible }   Asked when the visitor reaches the pricing
+  //     page. The "Referral / Discount Code" box is only shown if a live
+  //     card matches the mobile number + name they filled in.
+  //   validateReferralCode({ code, mobile, name })
+  //     -> { ok, valid, code, percent|flat, cardPeople }  or
+  //        { ok, valid:false, reason: "invalid" | "used" }
+  //
+  // Both carry the visitor's mobile number, so — like submitBooking —
+  // they are consent-gated and do nothing until the visitor accepted.
+  function checkReferralEligibility(details) {
+    if (!consentOk() || !details || !details.mobile) return Promise.resolve({ ok: true, eligible: false });
+    return fetch(`${API_BASE}/api/referral-check`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ site: SITE_ID, mobile: details.mobile, name: details.name || "" }),
+    })
+      .then((r) => r.json())
+      .catch(() => ({ ok: false, eligible: false }));
+  }
+
+  function validateReferralCode(details) {
+    if (!consentOk()) return Promise.resolve({ ok: false, valid: false, error: "consent required" });
+    if (!details || !details.code) return Promise.resolve({ ok: true, valid: false, reason: "invalid" });
+    return fetch(`${API_BASE}/api/referral-validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ site: SITE_ID, code: details.code, mobile: details.mobile || "", name: details.name || "" }),
+    })
+      .then((r) => r.json())
+      .catch(() => ({ ok: false, valid: false, error: "network error" }));
+  }
+
+  return { getMode, trackVisit, trackTap, sendDraft, notifyPayNow, uploadReceipt, submitBooking, watchStatus, requestRefund, watchRefundStatus, checkReferralEligibility, validateReferralCode, sessionId };
 })();
 
 // Fire the silent visit ping only once the visitor has accepted data
