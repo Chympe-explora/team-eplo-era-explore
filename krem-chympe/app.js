@@ -1602,8 +1602,15 @@
     var referralCoveredPeople = 0;
     var referralDiscountAmount = 0;
     var referralBase = 0;
-    var referralExcludedAmount = (referralApplied && pkg === "privatePackage" && !referralApplied.includeFourByFour)
-      ? Math.min(Number(totals.jeepCost) || 0, subtotalBeforeReferral) : 0;
+    // Named parts of the admin's price (4x4, guide, food, activities,
+    // facilities, or anything else they typed) that this card leaves out of
+    // the discount. This mirrors the backend's own calculation, which is
+    // the one that actually decides the amount due — this is only a
+    // preview so the guest sees a number that matches what they'll get.
+    var referralExtras = (referralApplied && Array.isArray(referralApplied.extras)) ? referralApplied.extras : [];
+    var referralExcludedAmount = referralApplied
+      ? Math.min(referralExtras.filter(function (e) { return !e.included; }).reduce(function (s, e) { return s + (Number(e.amount) || 0); }, 0), subtotalBeforeReferral)
+      : 0;
     if (referralApplied && referralTotalPersons > 0 && subtotalBeforeReferral > 0) {
       referralCoveredPeople = Math.min(Math.max(1, Number(referralApplied.cardPeople) || 1), referralTotalPersons);
       // 4x4 jeep (a per-GROUP charge) is left out of the discountable amount
@@ -1660,7 +1667,7 @@
       window.KCBridge.validateReferralCode({ code: code, mobile: contact.whatsapp, name: contact.name }).then(function (res) {
         setReferralChecking(false);
         if (res && res.ok && res.valid) {
-          setReferralApplied({ code: res.code, percent: res.percent, flat: res.flat, cardPeople: res.cardPeople || 1, includeFourByFour: !!res.includeFourByFour });
+          setReferralApplied({ code: res.code, percent: res.percent, flat: res.flat, cardPeople: res.cardPeople || 1, extras: Array.isArray(res.extras) ? res.extras : [] });
           setReferralError("");
         } else {
           setReferralApplied(null);
@@ -2651,7 +2658,8 @@
             referralError && h("div", { className: "mt-2 text-[11px] text-red-400" }, referralError),
             referralApplied && referralExcludedAmount > 0 && h(
               "div", { className: "mt-2 text-[11px] text-white/50" },
-              "The 4x4 jeep (" + money(referralExcludedAmount) + ") isn't included in the discount."
+              referralExtras.filter(function (e) { return !e.included && e.amount > 0; }).map(function (e) { return e.label + " (" + money(e.amount) + ")"; }).join(", ") +
+                (referralExtras.filter(function (e) { return !e.included && e.amount > 0; }).length === 1 ? " isn't" : " aren't") + " included in the discount."
             ),
             referralApplied && referralCoveredPeople > 0 && referralCoveredPeople < referralTotalPersons && h(
               "div", { className: "mt-2 text-[11px] text-white/50" },
