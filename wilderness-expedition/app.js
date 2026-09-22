@@ -1590,12 +1590,13 @@
 
     var subtotalBeforeReferral = totals.grandTotal || 0;
 
-    // A referral code discounts only as many guests as its card was made
-    // for. A card for 1 person on a booking for 3 discounts ONE person's
-    // share of the bill; the other two pay the normal price. Flat-₹ codes
-    // are capped at that share too. This is the same formula as
-    // computeReferralDiscount() in the backend's referrals.js — the
-    // backend re-checks it on submit, so keep the two identical.
+    // A referral code discounts a FIXED ₹ figure — whichever lines the
+    // admin marked "included" when the card was made — never a share of
+    // whatever this booking's real bill comes to. Adding more people,
+    // more thalis, a jeep, etc. beyond what's on the card never changes
+    // it. This is the same formula as computeReferralDiscount() in the
+    // backend's referrals.js — the backend re-checks it on submit, so
+    // keep the two identical.
     var referralTotalPersons = pkg === "sharedTour" ? (totals.payingPersons || 0) : pkg === "privatePackage" ? (totals.people || 0) : 0;
     var referralCoveredPeople = 0;
     var referralDiscountAmount = 0;
@@ -1606,15 +1607,21 @@
     // the one that actually decides the amount due — this is only a
     // preview so the guest sees a number that matches what they'll get.
     var referralExtras = (referralApplied && Array.isArray(referralApplied.extras)) ? referralApplied.extras : [];
+    // Still computed for the "X isn't/aren't included in the discount"
+    // note below — display only, no longer part of the discount maths.
     var referralExcludedAmount = referralApplied
-      ? Math.min(referralExtras.filter(function (e) { return !e.included; }).reduce(function (s, e) { return s + (Number(e.amount) || 0); }, 0), subtotalBeforeReferral)
+      ? referralExtras.filter(function (e) { return !e.included; }).reduce(function (s, e) { return s + (Number(e.amount) || 0); }, 0)
+      : 0;
+    var referralIncludedAmount = referralApplied
+      ? referralExtras.filter(function (e) { return e.included; }).reduce(function (s, e) { return s + (Number(e.amount) || 0); }, 0)
       : 0;
     if (referralApplied && referralTotalPersons > 0 && subtotalBeforeReferral > 0) {
       referralCoveredPeople = Math.min(Math.max(1, Number(referralApplied.cardPeople) || 1), referralTotalPersons);
-      // 4x4 jeep (a per-GROUP charge) is left out of the discountable amount
-      // unless the admin ticked "include 4x4" on the card. Same rule as the
-      // backend's computeReferralDiscount() `excluded` argument.
-      referralBase = (Math.max(0, subtotalBeforeReferral - referralExcludedAmount) * referralCoveredPeople) / referralTotalPersons;
+      // The discount applies to a FIXED ₹ figure — the parts of the card
+      // the admin marked "included" — never to a share of whatever this
+      // guest's real bill comes to. Extra items (jeep, more thalis, more
+      // guests) the visitor adds beyond the card never change this base.
+      referralBase = referralIncludedAmount;
       if (referralApplied.percent) referralDiscountAmount = Math.round((referralBase * referralApplied.percent) / 100);
       else if (referralApplied.flat) referralDiscountAmount = Math.min(Number(referralApplied.flat), Math.round(referralBase));
       referralDiscountAmount = Math.max(0, Math.min(referralDiscountAmount, subtotalBeforeReferral));
