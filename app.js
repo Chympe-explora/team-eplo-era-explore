@@ -703,6 +703,125 @@
     );
   }
 
+  // ---------------------------------------------------------------------
+  // WeatherMapSection — live map + current weather for one admin-set
+  // location. Shown below Visitor Ratings on the home page.
+  //
+  // Admin control: Telegram Admin → ✏️ Edit Content → Weather Location
+  // (root site) — locationName / latitude / longitude / zoom / on-off,
+  // same generic content editor used for every other field on the site.
+  // Change the coordinates any time and both the map and the weather
+  // below update to match — nothing else needs touching.
+  //
+  // No API key needed for either piece, so there's nothing to expire or
+  // misconfigure:
+  //  - Map: a plain Google Maps embed URL (google.com/maps?q=lat,lng),
+  //    the same kind of link "Open in Maps" uses, just rendered in an
+  //    iframe instead of opened in a new tab.
+  //  - Weather: Open-Meteo (open-meteo.com), a free public weather API
+  //    that takes only latitude/longitude — real current conditions for
+  //    whatever coordinates the admin has set, no signup required.
+  // ---------------------------------------------------------------------
+  var WEATHER_CODES = {
+    0: ["\u2600\ufe0f", "Clear Sky"], 1: ["\ud83c\udf24\ufe0f", "Mostly Clear"], 2: ["\u26c5", "Partly Cloudy"], 3: ["\u2601\ufe0f", "Overcast"],
+    45: ["\ud83c\udf2b\ufe0f", "Fog"], 48: ["\ud83c\udf2b\ufe0f", "Rime Fog"],
+    51: ["\ud83c\udf26\ufe0f", "Light Drizzle"], 53: ["\ud83c\udf26\ufe0f", "Drizzle"], 55: ["\ud83c\udf26\ufe0f", "Heavy Drizzle"],
+    61: ["\ud83c\udf27\ufe0f", "Light Rain"], 63: ["\ud83c\udf27\ufe0f", "Rain"], 65: ["\ud83c\udf27\ufe0f", "Heavy Rain"],
+    71: ["\ud83c\udf28\ufe0f", "Light Snow"], 73: ["\ud83c\udf28\ufe0f", "Snow"], 75: ["\ud83c\udf28\ufe0f", "Heavy Snow"],
+    80: ["\ud83c\udf26\ufe0f", "Rain Showers"], 81: ["\ud83c\udf27\ufe0f", "Rain Showers"], 82: ["\u26c8\ufe0f", "Violent Showers"],
+    95: ["\u26c8\ufe0f", "Thunderstorm"], 96: ["\u26c8\ufe0f", "Thunderstorm w/ Hail"], 99: ["\u26c8\ufe0f", "Thunderstorm w/ Hail"]
+  };
+  function describeWeather(code) { return WEATHER_CODES[code] || ["\ud83c\udf21\ufe0f", "\u2013"]; }
+
+  function WeatherMapSection() {
+    var LOC = CONTENT.weatherLocation || {};
+    if (!isOn(LOC.enabled, true)) return null;
+
+    var lat = typeof LOC.latitude === "number" ? LOC.latitude : parseFloat(LOC.latitude);
+    var lng = typeof LOC.longitude === "number" ? LOC.longitude : parseFloat(LOC.longitude);
+    if (!isFinite(lat) || !isFinite(lng)) return null;
+
+    var weatherState = useState(null); var weather = weatherState[0], setWeather = weatherState[1];
+    var errState = useState(false); var weatherError = errState[0], setWeatherError = errState[1];
+
+    // Re-fetches whenever the admin-set coordinates change (site nav
+    // between pages doesn't remount this, but a fresh page load with a
+    // new lat/lng picks it up immediately).
+    useEffect(function () {
+      setWeather(null); setWeatherError(false);
+      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lng +
+        "&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto";
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.current) setWeather(data.current); else setWeatherError(true);
+        })
+        .catch(function () { setWeatherError(true); });
+    }, [lat, lng]);
+
+    var zoom = (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12;
+    var mapSrc = "https://www.google.com/maps?q=" + lat + "," + lng + "&z=" + zoom + "&output=embed";
+    var openInMapsUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
+    var mapHeight = LOC.mapHeightPx || 260;
+    var w = weather ? describeWeather(weather.weather_code) : null;
+
+    return h(
+      "section", { id: "weather", className: "scroll-mt-24 space-y-4 relative" },
+      h(SectionBG, { section: "weather" }),
+      h(
+        "div", { className: "text-center" },
+        h("h2", { className: "text-xl md:text-2xl font-bold tracking-tight" }, LOC.title || "Live Weather & Location"),
+        LOC.subtitle && h("p", { className: "text-white/60 text-xs mt-1" }, LOC.subtitle)
+      ),
+
+      h(
+        GlassCard, { className: "overflow-hidden relative" },
+        h(
+          "a",
+          {
+            href: openInMapsUrl, target: "_blank", rel: "noopener noreferrer",
+            className: "absolute top-3 left-3 z-10 bg-white text-[#1a73e8] text-xs font-semibold px-3 py-2 rounded-lg shadow flex items-center gap-1.5"
+          },
+          LOC.openInMapsLabel || "Open in Maps", h("span", { "aria-hidden": "true" }, "\u2197")
+        ),
+        h("iframe", {
+          src: mapSrc, width: "100%", height: mapHeight,
+          style: { border: 0, display: "block" }, loading: "lazy",
+          referrerPolicy: "no-referrer-when-downgrade",
+          title: (LOC.locationName || "Location") + " map"
+        })
+      ),
+
+      h(
+        GlassCard, { className: "p-5" },
+        h("div", { className: "text-sm font-semibold text-white/70 mb-1" }, "Weather Today"),
+        LOC.locationName && h("div", { className: "text-white/40 text-xs mb-3" }, LOC.locationName),
+        weatherError
+          ? h("div", { className: "text-white/50 text-sm" }, "Weather is unavailable right now.")
+          : !weather
+          ? h("div", { className: "text-white/50 text-sm" }, "Loading current weather\u2026")
+          : h(
+              "div", { className: "flex items-center gap-4" },
+              h("div", { className: "text-4xl leading-none" }, w[0]),
+              h(
+                "div", null,
+                h("div", { className: "text-3xl font-bold" }, Math.round(weather.temperature_2m) + "\u00b0"),
+                h("div", { className: "text-white/60 text-sm" }, w[1])
+              )
+            ),
+        h(
+          "a",
+          {
+            href: "https://www.google.com/search?q=" + encodeURIComponent("weather forecast " + (LOC.locationName || "")),
+            target: "_blank", rel: "noopener noreferrer",
+            className: "mt-4 inline-flex items-center gap-1 text-emerald-400 text-sm hover:underline"
+          },
+          (LOC.forecastLabel || "Weather Forecast") + " \u2192"
+        )
+      )
+    );
+  }
+
   var FOOTER = CONTENT.footer || { brandName: "", locationLine: "", contactTitle: "Contact Us", phone: "", email: "", followTitle: "Follow Us On", importantLinkTitle: "Important Link", refundPolicyLabel: "Refund Policy", copyright: "" };
   var REFUND_POLICY = CONTENT.refundPolicy || { title: "Refund Policy", intro: "", sections: [], promiseTitle: "", promiseText: [] };
 
@@ -1185,6 +1304,9 @@ function closeNotice() {
     // ---- Visitor Ratings -------------------------------------------------
     var ratingsSection = h(RatingsSection, null);
 
+    // ---- Weather & Map (shown right below Visitor Ratings) ------------
+    var weatherSection = h(WeatherMapSection, null);
+
     // ---- Footer -------------------------------------------------------
     var footer = h(
       "footer", { className: "pt-6 relative" },
@@ -1295,7 +1417,7 @@ function closeNotice() {
       }),
       header,
       page === "home"
-        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, footer)
+        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, weatherSection, footer)
         : refundPolicyPage,
       h("style", null, "\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap');\n        *{font-family:Inter, Poppins, sans-serif}\n        ::-webkit-scrollbar{width:6px;height:6px}\n        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:99px}\n        .scroll-mt-24{scroll-margin-top:6rem}\n      ")
     );
