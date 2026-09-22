@@ -224,7 +224,11 @@
     "openInMapsLabel": "Open in Maps",
     "forecastLabel": "Weather Forecast",
     "mapTilerApiKey": "QyPlTK2dEEgQsbGibxvO",
-    "mapStyle": "outdoor-v2"
+    "mapStyle": "streets-v2",
+    "endEnabled": false,
+    "endLocationName": "Trek End",
+    "endLatitude": 25.18,
+    "endLongitude": 92.48
   },
   "destinations": {
     "title": "Destinations",

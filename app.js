@@ -800,40 +800,89 @@
   }
 
   // ---------------------------------------------------------------------
-  // LocationMap — a single interactive map pin for the trekking base,
-  // built on MapLibre GL JS with vector tiles from MapTiler. Set the key
-  // at CONTENT.weatherLocation.mapTilerApiKey (Telegram Admin \u2192
-  // \u270f\ufe0f Edit Content \u2192 Weather Location) \u2014 get a free one at
-  // maptiler.com/cloud. Trek routes have been removed: this just shows
-  // where the base is, with an "Open in Maps" link for directions.
+  // LocationMap — one or two interactive map pins (start, and an
+  // optional end), built on MapLibre GL JS with vector tiles from
+  // MapTiler. Set the key at CONTENT.weatherLocation.mapTilerApiKey
+  // (Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Weather Location) \u2014 get a
+  // free one at maptiler.com/cloud. No line is drawn between the two
+  // points (trek routes were removed by request) \u2014 just the two pins,
+  // each with its own popup label.
   // ---------------------------------------------------------------------
+  // Small bottom-left button that swaps between the roadmap style and
+  // satellite imagery — same idea as the layer-switcher thumbnail
+  // Google Maps shows in its bottom-left corner. Markers/popups aren't
+  // part of the map style, so they stay put across the swap.
+  function SatelliteToggleControl(roadmapStyleUrl, satelliteStyleUrl) {
+    this._roadmapUrl = roadmapStyleUrl;
+    this._satelliteUrl = satelliteStyleUrl;
+    this._isSatellite = false;
+  }
+  SatelliteToggleControl.prototype.onAdd = function (map) {
+    this._map = map;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Satellite";
+    btn.style.cssText = "background:#fff;border:none;padding:7px 12px;font:600 11px/1 -apple-system,Roboto,Arial,sans-serif;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer;color:#333;";
+    var self = this;
+    btn.addEventListener("click", function () {
+      self._isSatellite = !self._isSatellite;
+      map.setStyle(self._isSatellite ? self._satelliteUrl : self._roadmapUrl);
+      btn.textContent = self._isSatellite ? "Map" : "Satellite";
+    });
+    var container = document.createElement("div");
+    container.className = "maplibregl-ctrl";
+    container.appendChild(btn);
+    this._container = container;
+    return container;
+  };
+  SatelliteToggleControl.prototype.onRemove = function () {
+    if (this._container.parentNode) this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  };
+
   function LocationMap(props) {
     var mapElRef = useRef(null);
     var mapObjRef = useRef(null);
-    var lat = props.lat, lng = props.lng, label = props.label, apiKey = props.apiKey, styleName = props.styleName;
+    var points = props.points || []; // [{lat,lng,label,color}]
+    var apiKey = props.apiKey, styleName = props.styleName;
+    var pointsKey = points.map(function (p) { return p.lat + "," + p.lng; }).join("|");
 
     useEffect(function () {
-      if (!window.maplibregl || !mapElRef.current || mapObjRef.current) return;
+      if (!window.maplibregl || !mapElRef.current || mapObjRef.current || points.length === 0) return;
       if (!apiKey || apiKey === "YOUR_MAPTILER_API_KEY") return; // no key set yet — nothing to render
+
+      var roadmapUrl = "https://api.maptiler.com/maps/" + (styleName || "streets-v2") + "/style.json?key=" + apiKey;
+      var satelliteUrl = "https://api.maptiler.com/maps/hybrid/style.json?key=" + apiKey;
 
       var map = new window.maplibregl.Map({
         container: mapElRef.current,
-        style: "https://api.maptiler.com/maps/" + (styleName || "outdoor-v2") + "/style.json?key=" + apiKey,
-        center: [lng, lat],
+        style: roadmapUrl,
+        center: [points[0].lng, points[0].lat],
         zoom: props.zoom || 12,
         scrollZoom: false
       });
       mapObjRef.current = map;
       map.addControl(new window.maplibregl.NavigationControl(), "top-right");
+      map.addControl(new SatelliteToggleControl(roadmapUrl, satelliteUrl), "bottom-left");
 
-      var markerEl = document.createElement("div");
-      markerEl.style.cssText = "background:#1a73e8;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;";
-      markerEl.innerHTML = "<span style=\"transform:rotate(45deg);font-size:15px;line-height:1;\">\ud83d\udccd</span>";
+      points.forEach(function (p) {
+        var markerEl = document.createElement("div");
+        markerEl.style.cssText = "width:27px;height:38px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35));";
+        markerEl.innerHTML = "<svg width=\"27\" height=\"38\" viewBox=\"0 0 27 38\" xmlns=\"http://www.w3.org/2000/svg\">" +
+          "<path d=\"M13.5 0C6.04 0 0 6.04 0 13.5c0 10.5 13.5 24.5 13.5 24.5s13.5-14 13.5-24.5C27 6.04 20.96 0 13.5 0z\" fill=\"" + (p.color || "#EA4335") + "\"/>" +
+          "<circle cx=\"13.5\" cy=\"13.5\" r=\"5.5\" fill=\"#fff\"/>" +
+          "</svg>";
 
-      new window.maplibregl.Marker({ element: markerEl, anchor: "bottom" })
-        .setLngLat([lng, lat])
-        .setPopup(new window.maplibregl.Popup({ offset: 25 }).setText(label || "Base Location"))
-        .addTo(map);
+        new window.maplibregl.Marker({ element: markerEl, anchor: "bottom" })
+          .setLngLat([p.lng, p.lat])
+          .setPopup(new window.maplibregl.Popup({ offset: 25 }).setText(p.label || "Location"))
+          .addTo(map);
+      });
+
+      if (points.length > 1) {
+        var bounds = points.reduce(function (b, p) { return b.extend([p.lng, p.lat]); }, new window.maplibregl.LngLatBounds([points[0].lng, points[0].lat], [points[0].lng, points[0].lat]));
+        map.fitBounds(bounds, { padding: 60, maxZoom: props.zoom || 14 });
+      }
 
       // Scroll-wheel zoom is off by default (see map creation above) so
       // a visitor scrolling the page past the map doesn't get stuck
@@ -841,7 +890,7 @@
       // long as it stays focused, off again once they click away.
       map.getCanvas().addEventListener("focus", function () { map.scrollZoom.enable(); });
       map.getCanvas().addEventListener("blur", function () { map.scrollZoom.disable(); });
-    }, [lat, lng, apiKey, styleName]);
+    }, [pointsKey, apiKey, styleName]);
 
     if (!apiKey || apiKey === "YOUR_MAPTILER_API_KEY") {
       return h(
@@ -860,7 +909,14 @@
     var baseLng = typeof LOC.longitude === "number" ? LOC.longitude : parseFloat(LOC.longitude);
     var hasBase = mapOn && isFinite(baseLat) && isFinite(baseLng);
 
+    var endLat = typeof LOC.endLatitude === "number" ? LOC.endLatitude : parseFloat(LOC.endLatitude);
+    var endLng = typeof LOC.endLongitude === "number" ? LOC.endLongitude : parseFloat(LOC.endLongitude);
+    var hasEnd = mapOn && isOn(LOC.endEnabled, false) && isFinite(endLat) && isFinite(endLng);
+
     if (!hasBase) return null;
+
+    var points = [{ lat: baseLat, lng: baseLng, label: LOC.locationName || "Start", color: "#EA4335" }];
+    if (hasEnd) points.push({ lat: endLat, lng: endLng, label: LOC.endLocationName || "End", color: "#34A853" });
 
     var openInMapsUrl = "https://www.google.com/maps?q=" + baseLat + "," + baseLng;
     var mapHeight = LOC.mapHeightPx || 320;
@@ -885,10 +941,15 @@
           LOC.openInMapsLabel || "Open in Maps", h("span", { "aria-hidden": "true" }, "\u2197")
         ),
         h(LocationMap, {
-          lat: baseLat, lng: baseLng, label: LOC.locationName || "Base Location",
+          points: points,
           apiKey: LOC.mapTilerApiKey, styleName: LOC.mapStyle,
           height: mapHeight, zoom: (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12
-        })
+        }),
+        hasEnd && h(
+          "div", { className: "flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 text-[11px] text-white/60 border-t border-white/10" },
+          h("span", { className: "flex items-center gap-1.5" }, h("span", { style: { width: 8, height: 8, borderRadius: "50%", background: "#EA4335", display: "inline-block" } }), LOC.locationName || "Start"),
+          h("span", { className: "flex items-center gap-1.5" }, h("span", { style: { width: 8, height: 8, borderRadius: "50%", background: "#34A853", display: "inline-block" } }), LOC.endLocationName || "End")
+        )
       )
     );
   }
