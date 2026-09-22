@@ -522,9 +522,10 @@
     return h("span", null, stars);
   }
 
-  function RatingsSection() {
+  function RatingsSection(props) {
     var API_BASE = "https://teamexploera-backend.book-and-explore.workers.dev";
     var siteId = window.KC_SITE_ID || "root";
+    var onSummaryChange = props && props.onSummaryChange;
 
     var dataState = useState(null); var ratingsData = dataState[0], setRatingsData = dataState[1];
     var formState = useState({ name: "", rating: 0, comment: "" }); var form = formState[0], setForm = formState[1];
@@ -548,6 +549,16 @@
         .catch(function () {});
     }
     useEffect(function () { loadRatings(); }, []);
+
+    // Push the live average/count up to App() whenever it changes, so
+    // the compact rating summary shown near the top of the page (right
+    // above Destinations) always matches this section — no separate
+    // fetch, no risk of the two drifting apart.
+    useEffect(function () {
+      if (ratingsData && onSummaryChange) {
+        onSummaryChange({ average: ratingsData.average, count: ratingsData.count });
+      }
+    }, [ratingsData]);
 
     function submitRating(e) {
       e.preventDefault();
@@ -704,31 +715,21 @@
   }
 
   // ---------------------------------------------------------------------
-  // WeatherMapSection — ONE interactive map with every pin on it (the
-  // base/weather location, plus every trek's start \ud83d\udea9 and end \ud83c\udfc1 point,
-  // each labeled with the adventure name), and the live weather for the
-  // base location. Shown below Visitor Ratings on the home page.
+  // Weather — ONE live weather card (WeatherStrip), placed right under
+  // the hero, above Visitor Ratings. This is now the site's only
+  // weather display; the old second copy that used to sit below the
+  // map further down the page has been removed since it just repeated
+  // the same numbers.
   //
   // Admin control — same generic content editor as every other field on
   // the site, no bespoke bot menu needed:
   //   Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Weather Location
-  //     locationName / latitude / longitude / zoom / on-off \u2014 the base
-  //     pin and the weather card both follow this.
-  //   Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Trek Routes \u2192 Items
-  //     Add a new route with "\u2795 Add new item" (copies the last one \u2014
-  //     just edit its fields), reorder, or flip a route's On/Off switch.
-  //     Each item: Label (the adventure name, e.g. "Krem Chympe Waterfall
-  //     & Cave"), Start Name + Start Latitude/Longitude, End Name + End
-  //     Latitude/Longitude. Every enabled route's start/end appear on the
-  //     SAME map above, connected by a line, plus in the list below it.
+  //     locationName / latitude / longitude / on-off \u2014 both this card
+  //     and the location map further down follow the same coordinates.
   //
-  // No API key for either piece:
-  //  - Map: Leaflet (loaded from cdnjs, see index.html) drawing real
-  //    OpenStreetMap tiles \u2014 a genuine multi-pin map, not a single-point
-  //    embed, so it can show as many named pins as the admin adds.
-  //  - Weather: Open-Meteo (open-meteo.com), a free public API that
-  //    takes only latitude/longitude \u2014 real current conditions for
-  //    whatever coordinates the admin has set, no signup required.
+  // Weather comes from Open-Meteo (open-meteo.com), a free public API
+  // that takes only latitude/longitude \u2014 real current conditions,
+  // no signup required.
   // ---------------------------------------------------------------------
   var WEATHER_CODES = {
     0: ["\u2600\ufe0f", "Clear Sky"], 1: ["\ud83c\udf24\ufe0f", "Mostly Clear"], 2: ["\u26c5", "Partly Cloudy"], 3: ["\u2601\ufe0f", "Overcast"],
@@ -742,12 +743,9 @@
   function describeWeather(code) { return WEATHER_CODES[code] || ["\ud83c\udf21\ufe0f", "\u2013"]; }
 
   // ---------------------------------------------------------------------
-  // WeatherStrip — a compact, single-line weather chip (no title, no
-  // section heading) placed right under the hero, above Visitor Ratings.
-  // Same admin-set location as the full Weather & Location block further
-  // down the page (Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Weather
-  // Location) \u2014 change the coordinates there and both this strip and
-  // the fuller section below update together.
+  // WeatherStrip — full weather card (icon, temperature, condition,
+  // location, forecast link) placed right under the hero, above Visitor
+  // Ratings. Replaces the old one-line compact chip.
   // ---------------------------------------------------------------------
   function WeatherStrip() {
     var LOC = CONTENT.weatherLocation || {};
@@ -775,67 +773,82 @@
     return h(
       "section", { className: "scroll-mt-24" },
       h(
-        GlassCard, { className: "px-5 py-2.5 flex items-center justify-center gap-2.5" },
-        h("span", { className: "text-lg leading-none" }, w ? w[0] : "\ud83c\udf21\ufe0f"),
+        GlassCard, { className: "p-5 md:p-6 flex flex-wrap items-center gap-5" },
+        h("div", { className: "text-5xl leading-none" }, w ? w[0] : "\ud83c\udf21\ufe0f"),
         weather
           ? h(
-              "span", { className: "text-[13px] leading-none" },
-              h("span", { className: "font-semibold" }, Math.round(weather.temperature_2m) + "\u00b0"),
-              h("span", { className: "text-white/60" }, " \u00b7 " + w[1] + (LOC.locationName ? " \u00b7 " + LOC.locationName : ""))
+              "div", null,
+              h(
+                "div", { className: "flex items-baseline gap-2" },
+                h("span", { className: "text-3xl md:text-4xl font-bold" }, Math.round(weather.temperature_2m) + "\u00b0"),
+                h("span", { className: "text-white/70 text-base" }, w[1])
+              ),
+              LOC.locationName && h("div", { className: "text-white/50 text-sm mt-1" }, LOC.locationName),
+              h(
+                "a",
+                {
+                  href: "https://www.google.com/search?q=" + encodeURIComponent("weather forecast " + (LOC.locationName || "")),
+                  target: "_blank", rel: "noopener noreferrer",
+                  className: "mt-2 inline-flex items-center gap-1 text-emerald-400 text-sm hover:underline"
+                },
+                (LOC.forecastLabel || "Weather Forecast") + " \u2192"
+              )
             )
-          : h("span", { className: "text-[13px] text-white/50 leading-none" }, "Loading weather\u2026")
+          : h("div", { className: "text-white/50 text-sm" }, "Loading current weather\u2026")
       )
     );
   }
 
-  // Small colored circle + emoji, built with plain CSS (no external
-  // marker image needed) — used for the base pin vs. start vs. end pins
-  // so they're visually distinct at a glance.
-  function trekDivIcon(emoji, bg) {
-    return window.L.divIcon({
-      html: "<div style=\"background:" + bg + ";width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;\">" +
-        "<span style=\"transform:rotate(45deg);font-size:15px;line-height:1;\">" + emoji + "</span></div>",
-      className: "", iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28]
-    });
-  }
-
-  function TrekMap(props) {
+  // ---------------------------------------------------------------------
+  // LocationMap — a single interactive map pin for the trekking base,
+  // built on MapLibre GL JS with vector tiles from MapTiler. Set the key
+  // at CONTENT.weatherLocation.mapTilerApiKey (Telegram Admin \u2192
+  // \u270f\ufe0f Edit Content \u2192 Weather Location) \u2014 get a free one at
+  // maptiler.com/cloud. Trek routes have been removed: this just shows
+  // where the base is, with an "Open in Maps" link for directions.
+  // ---------------------------------------------------------------------
+  function LocationMap(props) {
     var mapElRef = useRef(null);
     var mapObjRef = useRef(null);
-    var points = props.points; // [{lat,lng,emoji,bg,title,subtitle}]
-    var routeLines = props.routeLines; // [[[lat,lng],[lat,lng]], ...]
+    var lat = props.lat, lng = props.lng, label = props.label, apiKey = props.apiKey, styleName = props.styleName;
 
     useEffect(function () {
-      if (!window.L || !mapElRef.current || mapObjRef.current || points.length === 0) return;
-      var map = window.L.map(mapElRef.current, { scrollWheelZoom: false });
+      if (!window.maplibregl || !mapElRef.current || mapObjRef.current) return;
+      if (!apiKey || apiKey === "YOUR_MAPTILER_API_KEY") return; // no key set yet — nothing to render
+
+      var map = new window.maplibregl.Map({
+        container: mapElRef.current,
+        style: "https://api.maptiler.com/maps/" + (styleName || "outdoor-v2") + "/style.json?key=" + apiKey,
+        center: [lng, lat],
+        zoom: props.zoom || 12,
+        scrollZoom: false
+      });
       mapObjRef.current = map;
-      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "\u00a9 OpenStreetMap contributors"
-      }).addTo(map);
+      map.addControl(new window.maplibregl.NavigationControl(), "top-right");
 
-      var bounds = [];
-      points.forEach(function (p) {
-        window.L.marker([p.lat, p.lng], { icon: trekDivIcon(p.emoji, p.bg) })
-          .addTo(map)
-          .bindPopup("<b>" + p.title + "</b>" + (p.subtitle ? "<br/>" + p.subtitle : ""));
-        bounds.push([p.lat, p.lng]);
-      });
-      routeLines.forEach(function (line) {
-        window.L.polyline(line, { color: "#2E8B57", weight: 3, opacity: 0.8, dashArray: "6 6" }).addTo(map);
-      });
+      var markerEl = document.createElement("div");
+      markerEl.style.cssText = "background:#1a73e8;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;";
+      markerEl.innerHTML = "<span style=\"transform:rotate(45deg);font-size:15px;line-height:1;\">\ud83d\udccd</span>";
 
-      if (bounds.length === 1) map.setView(bounds[0], props.zoom || 12);
-      else map.fitBounds(bounds, { padding: [30, 30] });
+      new window.maplibregl.Marker({ element: markerEl, anchor: "bottom" })
+        .setLngLat([lng, lat])
+        .setPopup(new window.maplibregl.Popup({ offset: 25 }).setText(label || "Base Location"))
+        .addTo(map);
 
       // Scroll-wheel zoom is off by default (see map creation above) so
       // a visitor scrolling the page past the map doesn't get stuck
-      // zooming it instead; tapping/clicking into the map turns zoom on
-      // for as long as it stays focused, off again once they click away.
-      map.on("focus", function () { map.scrollWheelZoom.enable(); });
-      map.on("blur", function () { map.scrollWheelZoom.disable(); });
-    }, [points.length]);
+      // zooming it instead; clicking into the map turns zoom on for as
+      // long as it stays focused, off again once they click away.
+      map.getCanvas().addEventListener("focus", function () { map.scrollZoom.enable(); });
+      map.getCanvas().addEventListener("blur", function () { map.scrollZoom.disable(); });
+    }, [lat, lng, apiKey, styleName]);
 
+    if (!apiKey || apiKey === "YOUR_MAPTILER_API_KEY") {
+      return h(
+        "div", { className: "flex items-center justify-center text-white/50 text-sm p-8", style: { height: props.height || 320 } },
+        "Map is not configured \u2014 add a MapTiler API key in Weather Location settings."
+      );
+    }
     return h("div", { ref: mapElRef, style: { width: "100%", height: props.height || 320 } });
   }
 
@@ -847,61 +860,23 @@
     var baseLng = typeof LOC.longitude === "number" ? LOC.longitude : parseFloat(LOC.longitude);
     var hasBase = mapOn && isFinite(baseLat) && isFinite(baseLng);
 
-    var ROUTES_CFG = CONTENT.trekRoutes || {};
-    var routes = (ROUTES_CFG.items || []).filter(function (r) {
-      if (!isOn(r.enabled, true)) return false;
-      var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
-      var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
-      return isFinite(sLat) && isFinite(sLng) && isFinite(eLat) && isFinite(eLng);
-    });
+    if (!hasBase) return null;
 
-    if (!hasBase && routes.length === 0) return null;
-
-    var weatherState = useState(null); var weather = weatherState[0], setWeather = weatherState[1];
-    var errState = useState(false); var weatherError = errState[0], setWeatherError = errState[1];
-
-    useEffect(function () {
-      if (!hasBase) return;
-      setWeather(null); setWeatherError(false);
-      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + baseLat + "&longitude=" + baseLng +
-        "&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto";
-      fetch(url)
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.current) setWeather(data.current); else setWeatherError(true);
-        })
-        .catch(function () { setWeatherError(true); });
-    }, [hasBase, baseLat, baseLng]);
-
-    // Every pin that goes on the one shared map: the base/weather
-    // location plus each enabled route's start and end.
-    var points = [];
-    if (hasBase) points.push({ lat: baseLat, lng: baseLng, emoji: "\ud83d\udccd", bg: "#1a73e8", title: LOC.locationName || "Base Location" });
-    var routeLines = [];
-    routes.forEach(function (r) {
-      var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
-      var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
-      points.push({ lat: sLat, lng: sLng, emoji: "\ud83d\udea9", bg: "#2E8B57", title: r.label || "Adventure", subtitle: "Start \u2014 " + (r.startName || "") });
-      points.push({ lat: eLat, lng: eLng, emoji: "\ud83c\udfc1", bg: "#c0392b", title: r.label || "Adventure", subtitle: "End \u2014 " + (r.endName || "") });
-      routeLines.push([[sLat, sLng], [eLat, eLng]]);
-    });
-
-    var openInMapsUrl = hasBase ? "https://www.google.com/maps?q=" + baseLat + "," + baseLng : null;
+    var openInMapsUrl = "https://www.google.com/maps?q=" + baseLat + "," + baseLng;
     var mapHeight = LOC.mapHeightPx || 320;
-    var w = weather ? describeWeather(weather.weather_code) : null;
 
     return h(
       "section", { id: "weather", className: "scroll-mt-24 space-y-4 relative" },
       h(SectionBG, { section: "weather" }),
       h(
         "div", { className: "text-center" },
-        h("h2", { className: "text-xl md:text-2xl font-bold tracking-tight" }, LOC.title || "Live Weather & Location"),
+        h("h2", { className: "text-xl md:text-2xl font-bold tracking-tight" }, LOC.title || "Our Trekking Base"),
         LOC.subtitle && h("p", { className: "text-white/60 text-xs mt-1" }, LOC.subtitle)
       ),
 
-      points.length > 0 && h(
+      h(
         GlassCard, { className: "overflow-hidden relative" },
-        openInMapsUrl && h(
+        h(
           "a",
           {
             href: openInMapsUrl, target: "_blank", rel: "noopener noreferrer",
@@ -909,65 +884,11 @@
           },
           LOC.openInMapsLabel || "Open in Maps", h("span", { "aria-hidden": "true" }, "\u2197")
         ),
-        h(TrekMap, { points: points, routeLines: routeLines, height: mapHeight, zoom: (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12 }),
-        routes.length > 0 && h(
-          "div", { className: "flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 text-[11px] text-white/60 border-t border-white/10" },
-          h("span", { className: "flex items-center gap-1" }, "\ud83d\udccd", " Base"),
-          h("span", { className: "flex items-center gap-1" }, "\ud83d\udea9", " Trek start"),
-          h("span", { className: "flex items-center gap-1" }, "\ud83c\udfc1", " Trek end")
-        )
-      ),
-
-      hasBase && h(
-        GlassCard, { className: "p-5" },
-        h("div", { className: "text-sm font-semibold text-white/70 mb-1" }, "Weather Today"),
-        LOC.locationName && h("div", { className: "text-white/40 text-xs mb-3" }, LOC.locationName),
-        weatherError
-          ? h("div", { className: "text-white/50 text-sm" }, "Weather is unavailable right now.")
-          : !weather
-          ? h("div", { className: "text-white/50 text-sm" }, "Loading current weather\u2026")
-          : h(
-              "div", { className: "flex items-center gap-4" },
-              h("div", { className: "text-4xl leading-none" }, w[0]),
-              h(
-                "div", null,
-                h("div", { className: "text-3xl font-bold" }, Math.round(weather.temperature_2m) + "\u00b0"),
-                h("div", { className: "text-white/60 text-sm" }, w[1])
-              )
-            ),
-        h(
-          "a",
-          {
-            href: "https://www.google.com/search?q=" + encodeURIComponent("weather forecast " + (LOC.locationName || "")),
-            target: "_blank", rel: "noopener noreferrer",
-            className: "mt-4 inline-flex items-center gap-1 text-emerald-400 text-sm hover:underline"
-          },
-          (LOC.forecastLabel || "Weather Forecast") + " \u2192"
-        )
-      ),
-
-      routes.length > 0 && h(
-        "div", { className: "space-y-3" },
-        h("div", { className: "text-sm font-semibold text-white/70 text-center" }, ROUTES_CFG.title || "Trek Routes"),
-        h(
-          "div", { className: "grid md:grid-cols-2 gap-3" },
-          routes.map(function (r, i) {
-            var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
-            var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
-            var directionsUrl = "https://www.google.com/maps/dir/?api=1&origin=" + sLat + "," + sLng + "&destination=" + eLat + "," + eLng;
-            return h(
-              GlassCard, { key: i, className: "p-4" },
-              h("div", { className: "font-semibold text-sm mb-2" }, r.label || "Adventure"),
-              h("div", { className: "flex items-start gap-2 text-sm" }, h("span", null, "\ud83d\udea9"), h("span", { className: "text-white/80" }, r.startName || "Start")),
-              h("div", { className: "flex items-start gap-2 text-sm mt-1" }, h("span", null, "\ud83c\udfc1"), h("span", { className: "text-white/80" }, r.endName || "End")),
-              h(
-                "a",
-                { href: directionsUrl, target: "_blank", rel: "noopener noreferrer", className: "inline-flex items-center gap-1 text-emerald-400 text-xs mt-2 hover:underline" },
-                "Get Directions \u2192"
-              )
-            );
-          })
-        )
+        h(LocationMap, {
+          lat: baseLat, lng: baseLng, label: LOC.locationName || "Base Location",
+          apiKey: LOC.mapTilerApiKey, styleName: LOC.mapStyle,
+          height: mapHeight, zoom: (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12
+        })
       )
     );
   }
@@ -987,6 +908,11 @@
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
     var bookingOpenState = useState(false); var bookingOpen = bookingOpenState[0], setBookingOpen = bookingOpenState[1];
     var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
+
+    // Live ratings summary (average + count) — set by RatingsSection
+    // once it loads/updates, read by the compact rating summary near
+    // the top of the page so the two always show the same number.
+    var ratingsSummaryState = useState(null); var ratingsSummary = ratingsSummaryState[0], setRatingsSummary = ratingsSummaryState[1];
 
     // Which destination card's "Explore Destination" nav popover is
     // currently open (holds the destination's id, or null). Only one
@@ -1214,7 +1140,15 @@ function closeNotice() {
     var weatherStrip = h(WeatherStrip, null);
 
     // ---- Visitors Rating (shown above Destinations) --------------------
+    // The rating shown here is live — it comes from ratingsSummary,
+    // fed by the actual Ratings section further down the page (see
+    // RatingsSection's onSummaryChange), so the two numbers can never
+    // drift apart. Falls back to the admin-set googleRatingText only
+    // until the live data has loaded, or if there are no ratings yet.
     var RATING = CONTENT.visitorsRating || {};
+    var liveRatingText = (ratingsSummary && ratingsSummary.count > 0)
+      ? ratingsSummary.average + " Visitors Rating (" + ratingsSummary.count + (ratingsSummary.count === 1 ? " review" : " reviews") + ")"
+      : RATING.googleRatingText;
     var visitorsRating = h(
       "section", { className: "scroll-mt-24" },
       h(
@@ -1226,7 +1160,7 @@ function closeNotice() {
         ),
         h(
           "div", { className: "flex flex-wrap gap-6 text-[13px]" },
-          RATING.googleRatingText && h("span", { className: "flex items-center gap-2" }, h(Star, { size: 14, className: "text-amber-400" }), " " + RATING.googleRatingText),
+          liveRatingText && h("span", { className: "flex items-center gap-2" }, h(Star, { size: 14, className: "text-amber-400" }), " " + liveRatingText),
           RATING.safetyCertifiedText && h("span", { className: "flex items-center gap-2" }, h(Shield, { size: 14, className: "text-emerald-400" }), " " + RATING.safetyCertifiedText),
           RATING.ecoTourismText && h("span", { className: "flex items-center gap-2" }, h(Award, { size: 14 }), " " + RATING.ecoTourismText)
         )
@@ -1455,7 +1389,7 @@ function closeNotice() {
     );
 
     // ---- Visitor Ratings -------------------------------------------------
-    var ratingsSection = h(RatingsSection, null);
+    var ratingsSection = h(RatingsSection, { onSummaryChange: setRatingsSummary });
 
     // ---- Weather & Map (shown right below Visitor Ratings) ------------
     var weatherSection = h(WeatherMapSection, null);
