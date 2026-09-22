@@ -704,22 +704,30 @@
   }
 
   // ---------------------------------------------------------------------
-  // WeatherMapSection — live map + current weather for one admin-set
-  // location. Shown below Visitor Ratings on the home page.
+  // WeatherMapSection — ONE interactive map with every pin on it (the
+  // base/weather location, plus every trek's start \ud83d\udea9 and end \ud83c\udfc1 point,
+  // each labeled with the adventure name), and the live weather for the
+  // base location. Shown below Visitor Ratings on the home page.
   //
-  // Admin control: Telegram Admin → ✏️ Edit Content → Weather Location
-  // (root site) — locationName / latitude / longitude / zoom / on-off,
-  // same generic content editor used for every other field on the site.
-  // Change the coordinates any time and both the map and the weather
-  // below update to match — nothing else needs touching.
+  // Admin control — same generic content editor as every other field on
+  // the site, no bespoke bot menu needed:
+  //   Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Weather Location
+  //     locationName / latitude / longitude / zoom / on-off \u2014 the base
+  //     pin and the weather card both follow this.
+  //   Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Trek Routes \u2192 Items
+  //     Add a new route with "\u2795 Add new item" (copies the last one \u2014
+  //     just edit its fields), reorder, or flip a route's On/Off switch.
+  //     Each item: Label (the adventure name, e.g. "Krem Chympe Waterfall
+  //     & Cave"), Start Name + Start Latitude/Longitude, End Name + End
+  //     Latitude/Longitude. Every enabled route's start/end appear on the
+  //     SAME map above, connected by a line, plus in the list below it.
   //
-  // No API key needed for either piece, so there's nothing to expire or
-  // misconfigure:
-  //  - Map: a plain Google Maps embed URL (google.com/maps?q=lat,lng),
-  //    the same kind of link "Open in Maps" uses, just rendered in an
-  //    iframe instead of opened in a new tab.
-  //  - Weather: Open-Meteo (open-meteo.com), a free public weather API
-  //    that takes only latitude/longitude — real current conditions for
+  // No API key for either piece:
+  //  - Map: Leaflet (loaded from cdnjs, see index.html) drawing real
+  //    OpenStreetMap tiles \u2014 a genuine multi-pin map, not a single-point
+  //    embed, so it can show as many named pins as the admin adds.
+  //  - Weather: Open-Meteo (open-meteo.com), a free public API that
+  //    takes only latitude/longitude \u2014 real current conditions for
   //    whatever coordinates the admin has set, no signup required.
   // ---------------------------------------------------------------------
   var WEATHER_CODES = {
@@ -733,7 +741,15 @@
   };
   function describeWeather(code) { return WEATHER_CODES[code] || ["\ud83c\udf21\ufe0f", "\u2013"]; }
 
-  function WeatherMapSection() {
+  // ---------------------------------------------------------------------
+  // WeatherStrip — a compact, single-line weather chip (no title, no
+  // section heading) placed right under the hero, above Visitor Ratings.
+  // Same admin-set location as the full Weather & Location block further
+  // down the page (Telegram Admin \u2192 \u270f\ufe0f Edit Content \u2192 Weather
+  // Location) \u2014 change the coordinates there and both this strip and
+  // the fuller section below update together.
+  // ---------------------------------------------------------------------
+  function WeatherStrip() {
     var LOC = CONTENT.weatherLocation || {};
     if (!isOn(LOC.enabled, true)) return null;
 
@@ -744,12 +760,110 @@
     var weatherState = useState(null); var weather = weatherState[0], setWeather = weatherState[1];
     var errState = useState(false); var weatherError = errState[0], setWeatherError = errState[1];
 
-    // Re-fetches whenever the admin-set coordinates change (site nav
-    // between pages doesn't remount this, but a fresh page load with a
-    // new lat/lng picks it up immediately).
     useEffect(function () {
       setWeather(null); setWeatherError(false);
-      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lng +
+      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lng + "&current=temperature_2m,weather_code&timezone=auto";
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (data) { if (data && data.current) setWeather(data.current); else setWeatherError(true); })
+        .catch(function () { setWeatherError(true); });
+    }, [lat, lng]);
+
+    if (weatherError) return null;
+    var w = weather ? describeWeather(weather.weather_code) : null;
+
+    return h(
+      "section", { className: "scroll-mt-24" },
+      h(
+        GlassCard, { className: "px-5 py-2.5 flex items-center justify-center gap-2.5" },
+        h("span", { className: "text-lg leading-none" }, w ? w[0] : "\ud83c\udf21\ufe0f"),
+        weather
+          ? h(
+              "span", { className: "text-[13px] leading-none" },
+              h("span", { className: "font-semibold" }, Math.round(weather.temperature_2m) + "\u00b0"),
+              h("span", { className: "text-white/60" }, " \u00b7 " + w[1] + (LOC.locationName ? " \u00b7 " + LOC.locationName : ""))
+            )
+          : h("span", { className: "text-[13px] text-white/50 leading-none" }, "Loading weather\u2026")
+      )
+    );
+  }
+
+  // Small colored circle + emoji, built with plain CSS (no external
+  // marker image needed) — used for the base pin vs. start vs. end pins
+  // so they're visually distinct at a glance.
+  function trekDivIcon(emoji, bg) {
+    return window.L.divIcon({
+      html: "<div style=\"background:" + bg + ";width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;\">" +
+        "<span style=\"transform:rotate(45deg);font-size:15px;line-height:1;\">" + emoji + "</span></div>",
+      className: "", iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28]
+    });
+  }
+
+  function TrekMap(props) {
+    var mapElRef = useRef(null);
+    var mapObjRef = useRef(null);
+    var points = props.points; // [{lat,lng,emoji,bg,title,subtitle}]
+    var routeLines = props.routeLines; // [[[lat,lng],[lat,lng]], ...]
+
+    useEffect(function () {
+      if (!window.L || !mapElRef.current || mapObjRef.current || points.length === 0) return;
+      var map = window.L.map(mapElRef.current, { scrollWheelZoom: false });
+      mapObjRef.current = map;
+      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "\u00a9 OpenStreetMap contributors"
+      }).addTo(map);
+
+      var bounds = [];
+      points.forEach(function (p) {
+        window.L.marker([p.lat, p.lng], { icon: trekDivIcon(p.emoji, p.bg) })
+          .addTo(map)
+          .bindPopup("<b>" + p.title + "</b>" + (p.subtitle ? "<br/>" + p.subtitle : ""));
+        bounds.push([p.lat, p.lng]);
+      });
+      routeLines.forEach(function (line) {
+        window.L.polyline(line, { color: "#2E8B57", weight: 3, opacity: 0.8, dashArray: "6 6" }).addTo(map);
+      });
+
+      if (bounds.length === 1) map.setView(bounds[0], props.zoom || 12);
+      else map.fitBounds(bounds, { padding: [30, 30] });
+
+      // Scroll-wheel zoom is off by default (see map creation above) so
+      // a visitor scrolling the page past the map doesn't get stuck
+      // zooming it instead; tapping/clicking into the map turns zoom on
+      // for as long as it stays focused, off again once they click away.
+      map.on("focus", function () { map.scrollWheelZoom.enable(); });
+      map.on("blur", function () { map.scrollWheelZoom.disable(); });
+    }, [points.length]);
+
+    return h("div", { ref: mapElRef, style: { width: "100%", height: props.height || 320 } });
+  }
+
+  function WeatherMapSection() {
+    var LOC = CONTENT.weatherLocation || {};
+    var mapOn = isOn(LOC.enabled, true);
+
+    var baseLat = typeof LOC.latitude === "number" ? LOC.latitude : parseFloat(LOC.latitude);
+    var baseLng = typeof LOC.longitude === "number" ? LOC.longitude : parseFloat(LOC.longitude);
+    var hasBase = mapOn && isFinite(baseLat) && isFinite(baseLng);
+
+    var ROUTES_CFG = CONTENT.trekRoutes || {};
+    var routes = (ROUTES_CFG.items || []).filter(function (r) {
+      if (!isOn(r.enabled, true)) return false;
+      var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
+      var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
+      return isFinite(sLat) && isFinite(sLng) && isFinite(eLat) && isFinite(eLng);
+    });
+
+    if (!hasBase && routes.length === 0) return null;
+
+    var weatherState = useState(null); var weather = weatherState[0], setWeather = weatherState[1];
+    var errState = useState(false); var weatherError = errState[0], setWeatherError = errState[1];
+
+    useEffect(function () {
+      if (!hasBase) return;
+      setWeather(null); setWeatherError(false);
+      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + baseLat + "&longitude=" + baseLng +
         "&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto";
       fetch(url)
         .then(function (r) { return r.json(); })
@@ -757,12 +871,23 @@
           if (data && data.current) setWeather(data.current); else setWeatherError(true);
         })
         .catch(function () { setWeatherError(true); });
-    }, [lat, lng]);
+    }, [hasBase, baseLat, baseLng]);
 
-    var zoom = (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12;
-    var mapSrc = "https://www.google.com/maps?q=" + lat + "," + lng + "&z=" + zoom + "&output=embed";
-    var openInMapsUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
-    var mapHeight = LOC.mapHeightPx || 260;
+    // Every pin that goes on the one shared map: the base/weather
+    // location plus each enabled route's start and end.
+    var points = [];
+    if (hasBase) points.push({ lat: baseLat, lng: baseLng, emoji: "\ud83d\udccd", bg: "#1a73e8", title: LOC.locationName || "Base Location" });
+    var routeLines = [];
+    routes.forEach(function (r) {
+      var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
+      var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
+      points.push({ lat: sLat, lng: sLng, emoji: "\ud83d\udea9", bg: "#2E8B57", title: r.label || "Adventure", subtitle: "Start \u2014 " + (r.startName || "") });
+      points.push({ lat: eLat, lng: eLng, emoji: "\ud83c\udfc1", bg: "#c0392b", title: r.label || "Adventure", subtitle: "End \u2014 " + (r.endName || "") });
+      routeLines.push([[sLat, sLng], [eLat, eLng]]);
+    });
+
+    var openInMapsUrl = hasBase ? "https://www.google.com/maps?q=" + baseLat + "," + baseLng : null;
+    var mapHeight = LOC.mapHeightPx || 320;
     var w = weather ? describeWeather(weather.weather_code) : null;
 
     return h(
@@ -774,25 +899,26 @@
         LOC.subtitle && h("p", { className: "text-white/60 text-xs mt-1" }, LOC.subtitle)
       ),
 
-      h(
+      points.length > 0 && h(
         GlassCard, { className: "overflow-hidden relative" },
-        h(
+        openInMapsUrl && h(
           "a",
           {
             href: openInMapsUrl, target: "_blank", rel: "noopener noreferrer",
-            className: "absolute top-3 left-3 z-10 bg-white text-[#1a73e8] text-xs font-semibold px-3 py-2 rounded-lg shadow flex items-center gap-1.5"
+            className: "absolute top-3 left-3 z-[1000] bg-white text-[#1a73e8] text-xs font-semibold px-3 py-2 rounded-lg shadow flex items-center gap-1.5"
           },
           LOC.openInMapsLabel || "Open in Maps", h("span", { "aria-hidden": "true" }, "\u2197")
         ),
-        h("iframe", {
-          src: mapSrc, width: "100%", height: mapHeight,
-          style: { border: 0, display: "block" }, loading: "lazy",
-          referrerPolicy: "no-referrer-when-downgrade",
-          title: (LOC.locationName || "Location") + " map"
-        })
+        h(TrekMap, { points: points, routeLines: routeLines, height: mapHeight, zoom: (typeof LOC.zoom === "number" ? LOC.zoom : parseInt(LOC.zoom, 10)) || 12 }),
+        routes.length > 0 && h(
+          "div", { className: "flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 text-[11px] text-white/60 border-t border-white/10" },
+          h("span", { className: "flex items-center gap-1" }, "\ud83d\udccd", " Base"),
+          h("span", { className: "flex items-center gap-1" }, "\ud83d\udea9", " Trek start"),
+          h("span", { className: "flex items-center gap-1" }, "\ud83c\udfc1", " Trek end")
+        )
       ),
 
-      h(
+      hasBase && h(
         GlassCard, { className: "p-5" },
         h("div", { className: "text-sm font-semibold text-white/70 mb-1" }, "Weather Today"),
         LOC.locationName && h("div", { className: "text-white/40 text-xs mb-3" }, LOC.locationName),
@@ -817,6 +943,30 @@
             className: "mt-4 inline-flex items-center gap-1 text-emerald-400 text-sm hover:underline"
           },
           (LOC.forecastLabel || "Weather Forecast") + " \u2192"
+        )
+      ),
+
+      routes.length > 0 && h(
+        "div", { className: "space-y-3" },
+        h("div", { className: "text-sm font-semibold text-white/70 text-center" }, ROUTES_CFG.title || "Trek Routes"),
+        h(
+          "div", { className: "grid md:grid-cols-2 gap-3" },
+          routes.map(function (r, i) {
+            var sLat = parseFloat(r.startLatitude), sLng = parseFloat(r.startLongitude);
+            var eLat = parseFloat(r.endLatitude), eLng = parseFloat(r.endLongitude);
+            var directionsUrl = "https://www.google.com/maps/dir/?api=1&origin=" + sLat + "," + sLng + "&destination=" + eLat + "," + eLng;
+            return h(
+              GlassCard, { key: i, className: "p-4" },
+              h("div", { className: "font-semibold text-sm mb-2" }, r.label || "Adventure"),
+              h("div", { className: "flex items-start gap-2 text-sm" }, h("span", null, "\ud83d\udea9"), h("span", { className: "text-white/80" }, r.startName || "Start")),
+              h("div", { className: "flex items-start gap-2 text-sm mt-1" }, h("span", null, "\ud83c\udfc1"), h("span", { className: "text-white/80" }, r.endName || "End")),
+              h(
+                "a",
+                { href: directionsUrl, target: "_blank", rel: "noopener noreferrer", className: "inline-flex items-center gap-1 text-emerald-400 text-xs mt-2 hover:underline" },
+                "Get Directions \u2192"
+              )
+            );
+          })
         )
       )
     );
@@ -1059,6 +1209,9 @@ function closeNotice() {
         )
       )
     );
+
+    // ---- Weather Strip (compact, no heading — shown right below Hero) --
+    var weatherStrip = h(WeatherStrip, null);
 
     // ---- Visitors Rating (shown above Destinations) --------------------
     var RATING = CONTENT.visitorsRating || {};
@@ -1417,7 +1570,7 @@ function closeNotice() {
       }),
       header,
       page === "home"
-        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, visitorsRating, destinations, experiences, booking, about, ratingsSection, weatherSection, footer)
+        ? h("main", { className: "max-w-[1280px] mx-auto px-4 md:px-6 pb-32 space-y-16 pt-6" }, home, weatherStrip, visitorsRating, destinations, experiences, booking, about, ratingsSection, weatherSection, footer)
         : refundPolicyPage,
       h("style", null, "\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap');\n        *{font-family:Inter, Poppins, sans-serif}\n        ::-webkit-scrollbar{width:6px;height:6px}\n        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:99px}\n        .scroll-mt-24{scroll-margin-top:6rem}\n      ")
     );

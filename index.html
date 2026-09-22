@@ -119,6 +119,13 @@
   <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" defer></script>
+  <!-- Leaflet: powers the Weather & Location map (app.js's
+       WeatherMapSection) — real OpenStreetMap tiles with as many named
+       pins as the admin adds (base location + every trek's start/end),
+       no API key needed. Must load (deferred, same as React above) before
+       app.js runs. -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" defer></script>
   <!-- Note: the "site opened" Telegram ping for THIS page now fires
        unconditionally from inside preload-intro.js (no consent gate,
        by request) — so consent.js/booking-bridge.js are intentionally
