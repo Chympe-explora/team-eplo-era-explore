@@ -1450,7 +1450,7 @@
       // keeps this untappable until a receipt is uploaded) — a visitor
       // must upload a payment receipt/screenshot before a booking can be
       // submitted at all.
-      if (!receiptOk) { setSubmitError("Please upload your payment receipt/screenshot before submitting."); return false; }
+      if (!isFreeBooking && !receiptOk) { setSubmitError("Please upload your payment receipt/screenshot before submitting."); return false; }
       setSubmitError("");
 
       // Send the finished booking to the guide's Telegram FIRST, and only
@@ -1473,7 +1473,7 @@
         // the backend matches against a guide's assigned services for
         // random assignment. See guides.js on the backend.
         packageKey: pkg,
-        reference: visitorCodeRef.current, advance: advance, total: grandTotal, balance: balanceLeft,
+        reference: visitorCodeRef.current, advance: advanceForRecord, total: grandTotal, balance: balanceLeft,
         referralCode: referralApplied ? referralApplied.code : "",
         // What the discount was worked out from — the backend re-checks
         // the code against this visitor's mobile number and refuses a
@@ -1616,6 +1616,13 @@
     }
     var grandTotal = Math.max(0, subtotalBeforeReferral - referralDiscountAmount);
     var balanceLeft = Math.max(0, grandTotal - Number(advance || 0));
+    // Nothing left to pay (a 100%-off referral code covering every guest,
+    // say) — skip the whole Payment page: no method to pick, no advance
+    // to type, no receipt to upload.
+    var isFreeBooking = grandTotal === 0;
+    // Nothing to type for a free booking, so treat the advance as ₹0 for the
+    // record/receipt/thank-you text instead of an empty string.
+    var advanceForRecord = isFreeBooking ? 0 : Number(advance || 0);
 
     // "🎁 Referral Code PRIYA482 (1 of 3 guests)" — the partial-cover
     // suffix only appears when the card covers fewer guests than booked.
@@ -2666,7 +2673,7 @@
       h(
         GlassCard, { className: "p-6 md:p-8" },
         h("h2", { className: "text-2xl font-semibold" }, t("paymentOptionsTitle", "Payment Options")),
-        h(
+        !isFreeBooking && h(
           "div", { className: "mt-6 flex gap-2 p-1 bg-white/5 rounded-full w-fit border border-white/10" },
           [{ id: "qr", label: t("qrScannerLabel", "QR Scanner"), icon: QrCode }, { id: "upi", label: t("upiIdLabel", "UPI ID"), icon: CreditCard }, { id: "bank", label: t("bankTransferLabel", "Bank Transfer"), icon: Building2 }].map(function (p) {
             return h("button", { key: p.id, onClick: function () { setPayTab(p.id); }, className: "px-5 py-2 rounded-full text-sm flex items-center gap-2 transition " + (payTab === p.id ? "bg-white text-black" : "text-white/60 hover:text-white") }, h(p.icon, { size: 14 }), p.label);
@@ -2674,7 +2681,11 @@
         ),
         h(
           "div", { className: "mt-8 grid md:grid-cols-[320px_1fr] gap-8" },
-          h(
+          isFreeBooking ? h(
+            GlassCard, { className: "p-5 !rounded-[16px]" },
+            h("div", { className: "text-sm font-medium" }, "This booking is fully covered"),
+            h("div", { className: "mt-2 text-[13px] text-white/60" }, "Your referral code covers the full amount — nothing to pay. Tap Submit to confirm.")
+          ) : h(
             "div", null,
             payTab === "qr" && h(
               "div", { className: "space-y-4" },
@@ -2725,19 +2736,19 @@
                 h("div", { className: "flex justify-between font-bold pt-2 border-t border-white/10" }, h("span", null, t("totalLabel", "Total")), h("span", null, money(grandTotal)))
               )
             ),
-            h(
+            !isFreeBooking && h(
               "div", null,
               h("label", { className: "text-xs text-white/60" }, t("advancePaymentLabel", "Advance Payment (Min ") + money(minAdvance) + ")"),
               h("input", { type: "number", min: minAdvance, value: advance, placeholder: "Min " + minAdvance, onChange: function (e) { var v = e.target.value; setAdvance(v === "" ? "" : Math.max(0, Number(v))); }, className: "mt-2 w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 outline-none text-sm" }),
               advance < minAdvance && h("div", { className: "text-[11px] text-red-300 mt-2" }, PAY.advanceHelperText),
               h("div", { className: "mt-2 text-xs text-white/50" }, t("balanceLeftLabel", "Balance left to pay on arrival: ₹"), balanceLeft)
             ),
-            h(
+            !isFreeBooking && h(
               GlassCard, { className: "p-4 !rounded-[16px] flex gap-3" },
               h("div", { className: "w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center" }, h(Shield, { size: 14, className: "text-emerald-400" })),
               h("div", { className: "text-[12px] text-white/60" }, t("payInstructionsText", "Pay using any of the methods above, then tap Submit — when you are ready to chat with your tour guide."))
             ),
-            h(
+            !isFreeBooking && h(
               GlassCard, { className: "p-4 !rounded-[16px]" },
               h("label", { className: "text-xs text-white/60 block mb-2" }, t("uploadReceiptLabel", "Upload Payment Receipt / Screenshot (required)")),
               h("input", {
@@ -2762,7 +2773,7 @@
               // inside submitBookingViaWhatsApp itself: once a booking is
               // in flight or already sitting pending with the guide, the
               // button is visibly disabled too, not just logically blocked.
-              disabled: advance < minAdvance || !receiptOk || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
+              disabled: (!isFreeBooking && (advance < minAdvance || !receiptOk)) || isSubmitting || (!!trackingId && bookingStatus === "pending" && !noResponse),
               className: "kc-whatsapp-btn"
             }, h(Phone, { size: 18 }), isSubmitting ? t("sendingBookingButton", "Sending…") : t("submitBookingButton", "Submit"))
           )
@@ -2843,7 +2854,9 @@
         label: t("checkingWithGuideText", "Checking with your guide… "),
         onExpire: setNoResponse
       }),
-      h("p", { className: "mt-3 text-white/60 text-sm" }, t("thankYouPrefix", "Thank you "), contact.name, t("thankYouMiddle", "! Your adventure is secured. We have received advance ₹"), advance, t("thankYouBalanceMid", ". Balance ₹"), balanceLeft, t("thankYouSuffix", " to be paid on arrival.")),
+      h("p", { className: "mt-3 text-white/60 text-sm" }, t("thankYouPrefix", "Thank you "), contact.name, isFreeBooking
+        ? t("thankYouFreeMiddle", "! Your adventure is secured — your referral code covered the full amount. See you soon!")
+        : h(React.Fragment, null, t("thankYouMiddle", "! Your adventure is secured. We have received advance ₹"), advanceForRecord, t("thankYouBalanceMid", ". Balance ₹"), balanceLeft, t("thankYouSuffix", " to be paid on arrival."))),
       bookingCode && h(
         "div", { className: "mt-4 inline-block px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/80 text-sm font-mono" },
         t("referenceLabel", "Reference: #"), bookingCode
