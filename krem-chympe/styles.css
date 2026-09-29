@@ -264,3 +264,12 @@ input[type="file"]:hover::file-selector-button {
     0 10px 26px rgba(0,0,0,.4) !important;
 }
 
+
+/* --- "Why Visit" split cards: each journey is its own card. On phones the
+   stack runs almost edge-to-edge (cancels most of the page's side padding)
+   with a tight 10px gap; on tablet/desktop it becomes a 2-column grid. --- */
+.kc-split-stack{display:flex;flex-direction:column;gap:10px;margin-left:-10px;margin-right:-10px}
+@media (min-width:768px){
+  .kc-split-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-left:0;margin-right:0}
+  .kc-split-stack>.kc-split-head{grid-column:1/-1}
+}
