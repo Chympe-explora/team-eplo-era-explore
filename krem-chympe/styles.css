@@ -268,7 +268,7 @@ input[type="file"]:hover::file-selector-button {
 /* --- "Why Visit" split cards: each journey is its own card. On phones the
    stack runs almost edge-to-edge (cancels most of the page's side padding)
    with a tight 10px gap; on tablet/desktop it becomes a 2-column grid. --- */
-.kc-split-stack{display:flex;flex-direction:column;gap:10px}
+.kc-split-stack{display:flex;flex-direction:column;gap:24px}
 @media (min-width:768px){
   .kc-split-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-left:0;margin-right:0}
   .kc-split-stack>.kc-split-head{grid-column:1/-1}
@@ -283,12 +283,12 @@ input[type="file"]:hover::file-selector-button {
 .kc-card-stack{display:flex;flex-direction:column}
 @media (max-width:767px){
   main[class*="pb-32"]{padding-left:4px;padding-right:4px}
-  main[class*="pb-32"]>*+*{margin-top:10px!important}
+  main[class*="pb-32"]>*+*{margin-top:24px!important}
   main[class*="pb-32"]>.grid,
   main[class*="pb-32"] #kc-explore>.grid,
-  #destinations>.grid{gap:10px!important}
+  #destinations>.grid{gap:24px!important}
   #kc-explore>*+*,#ratings>*+*,#weather>*+*,
-  .kc-card-stack>*+*{margin-top:10px!important}
-  #destinations>div.mb-4{margin-bottom:10px!important}
+  .kc-card-stack>*+*{margin-top:24px!important}
+  #destinations>div.mb-4{margin-bottom:16px!important}
   main[class*="pb-32"] div[class*="rounded-[24px]"][class*=" p-"]{padding-left:16px;padding-right:16px}
 }
