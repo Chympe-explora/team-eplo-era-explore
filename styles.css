@@ -282,3 +282,22 @@ input[type="file"]:hover::file-selector-button {
     0 10px 26px rgba(0,0,0,.4) !important;
 }
 
+
+/* ============================================================
+   WIDER CARDS + TIGHTER GAPS (phones only, <768px)
+   Cards run almost edge-to-edge (4px side margin), text sits
+   16px inside each card, and every gap between sections/cards
+   is 10px. Tablet/desktop layout is unchanged.
+   ============================================================ */
+.kc-card-stack{display:flex;flex-direction:column}
+@media (max-width:767px){
+  main[class*="pb-32"]{padding-left:4px;padding-right:4px}
+  main[class*="pb-32"]>*+*{margin-top:10px!important}
+  main[class*="pb-32"]>.grid,
+  main[class*="pb-32"] #kc-explore>.grid,
+  #destinations>.grid{gap:10px!important}
+  #kc-explore>*+*,#ratings>*+*,#weather>*+*,
+  .kc-card-stack>*+*{margin-top:10px!important}
+  #destinations>div.mb-4{margin-bottom:10px!important}
+  main[class*="pb-32"] div[class*="rounded-[24px]"][class*=" p-"]{padding-left:16px;padding-right:16px}
+}

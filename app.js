@@ -1357,7 +1357,7 @@ function closeNotice() {
     var experiences = h(
       "section", { id: "experiences", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "experiences" }),
-      h("div", { className: "space-y-6" }, expGroups.map(function (group, gi) {
+      h("div", { className: "space-y-6 kc-card-stack" }, expGroups.map(function (group, gi) {
         return h(
           GlassCard, { key: gi, className: "p-4 md:p-10" },
           gi === 0 && h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, EXP.title),
@@ -1412,7 +1412,7 @@ function closeNotice() {
           h(
             "div", { className: "overflow-hidden" },
             h(
-              "div", { className: "space-y-6" },
+              "div", { className: "space-y-6 kc-card-stack" },
               (BOOKING.reasons || []).map(function (r, i) {
                 return h(
                   GlassCard, { key: i, className: "p-4 md:p-12" },
@@ -1472,7 +1472,7 @@ function closeNotice() {
     var about = h(
       "section", { id: "about", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "about" }),
-      h("div", { className: "space-y-6" }, aboutGroups.map(function (group, gi) {
+      h("div", { className: "space-y-6 kc-card-stack" }, aboutGroups.map(function (group, gi) {
         return h(
           GlassCard, { key: gi, className: "p-4 md:p-12" },
           gi === 0 && h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, ABOUT.title),
