@@ -73,6 +73,36 @@
     ["circle", { cx: 12, cy: 8, r: 6 }]
   ]);
   var ChevronDown = makeIcon([["path", { d: "m6 9 6 6 6-6" }]]);
+  var Tag = makeIcon([["path", { d: "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" }], ["circle", { cx: 7.5, cy: 7.5, r: 0.5, fill: "currentColor" }]]);
+  var MessageCircle = makeIcon([["path", { d: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z" }]]);
+  var Users = makeIcon([["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }], ["circle", { cx: 9, cy: 7, r: 4 }], ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }], ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }]]);
+  var House = makeIcon([["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" }], ["path", { d: "M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }]]);
+  var BADGE_ICONS = { tag: Tag, chat: MessageCircle, users: Users, shield: Shield, home: House, award: Award, star: Star };
+  var BADGE_ICON_ORDER = ["tag", "chat", "users", "shield", "home"];
+
+  // ---------------------------------------------------------------------
+  // Text chunking: splits a long paragraph into short 1-2 sentence pieces
+  // (display only; the text in config.js is never changed). Very short
+  // fragments ("Dark. Silent. Ancient.") are grouped so they don't become
+  // one-word paragraphs.
+  // ---------------------------------------------------------------------
+  function chunkText(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!t) return [];
+    var safe = t.replace(/(\d)\.(\d)/g, "$1\u0001$2");
+    var parts = safe.match(/[^.!?\u2026]+(?:[.!?\u2026]+["\u201D\u2019')\]]*|$)/g) || [safe];
+    var sents = parts.map(function (x) { return x.replace(/\u0001/g, ".").trim(); }).filter(Boolean);
+    var chunks = [], cur = "", n = 0;
+    sents.forEach(function (x) {
+      cur = cur ? cur + " " + x : x; n++;
+      if (cur.length >= 70 || (n >= 2 && cur.length >= 40)) { chunks.push(cur); cur = ""; n = 0; }
+    });
+    if (cur) {
+      if (chunks.length && cur.length < 12) chunks[chunks.length - 1] += " " + cur;
+      else chunks.push(cur);
+    }
+    return chunks;
+  }
 
   // ---------------------------------------------------------------------
   // Shared little components
@@ -542,6 +572,76 @@
     // room even for visitors who just wanted to glance at the score.
     var rateFormOpenState = useState(false); var rateFormOpen = rateFormOpenState[0], setRateFormOpen = rateFormOpenState[1];
 
+    // ---- Optional review photos (max 3) -------------------------------
+    // Each picked photo is compressed in the browser (WebP, max 1920px,
+    // ~80% quality, target < 500 KB) before it is ever uploaded.
+    var MAX_PHOTOS = 3;
+    var photosState = useState([]); var photos = photosState[0], setPhotos = photosState[1]; // [{ file, url }]
+    var photoBusyState = useState(false); var photoBusy = photoBusyState[0], setPhotoBusy = photoBusyState[1];
+    var photoErrState = useState(""); var photoError = photoErrState[0], setPhotoError = photoErrState[1];
+    var lightboxState = useState(""); var lightbox = lightboxState[0], setLightbox = lightboxState[1];
+
+    function loadCompressionLib() {
+      // Loaded only when someone actually picks a photo, so it costs nothing otherwise.
+      if (window.imageCompression) return Promise.resolve(window.imageCompression);
+      return new Promise(function (resolve, reject) {
+        var el = document.createElement("script");
+        el.src = "https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js";
+        el.onload = function () { window.imageCompression ? resolve(window.imageCompression) : reject(new Error("missing")); };
+        el.onerror = function () { reject(new Error("load failed")); };
+        document.head.appendChild(el);
+      });
+    }
+    function clearPhotos() {
+      photos.forEach(function (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} });
+      setPhotos([]); setPhotoError("");
+    }
+    function removePhoto(idx) {
+      var p = photos[idx];
+      if (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} }
+      setPhotos(photos.filter(function (_, i) { return i !== idx; }));
+      setPhotoError("");
+    }
+    function onPickPhotos(e) {
+      var picked = Array.prototype.slice.call(e.target.files || []);
+      e.target.value = ""; // lets the same photo be picked again after removing it
+      if (!picked.length) return;
+      var room = MAX_PHOTOS - photos.length;
+      if (room <= 0) return;
+      var note = picked.length > room ? "Only " + MAX_PHOTOS + " photos allowed — extra photos were skipped." : "";
+      picked = picked.slice(0, room);
+      setPhotoError(""); setPhotoBusy(true);
+      loadCompressionLib()
+        .then(function (compress) {
+          return Promise.all(picked.map(function (f) {
+            if (!/^image\//.test(f.type || "")) return Promise.reject(new Error("not an image"));
+            return compress(f, { maxSizeMB: 0.5, maxWidthOrHeight: 1920, fileType: "image/webp", initialQuality: 0.8, useWebWorker: true });
+          }));
+        })
+        .then(function (blobs) {
+          var added = blobs.map(function (b) {
+            var file = new File([b], "photo.webp", { type: b.type || "image/webp" });
+            return { file: file, url: URL.createObjectURL(file) };
+          });
+          if (added.some(function (a) { return a.file.size > 2 * 1024 * 1024; })) {
+            added.forEach(function (a) { URL.revokeObjectURL(a.url); });
+            setPhotoError("That photo is still too large after compression. Please pick a smaller one.");
+            return;
+          }
+          setPhotos(function (prev) { return prev.concat(added).slice(0, MAX_PHOTOS); });
+          if (note) setPhotoError(note);
+        })
+        .catch(function () { setPhotoError("Couldn't read one of those photos. Please try a different image."); })
+        .finally(function () { setPhotoBusy(false); });
+    }
+    useEffect(function () {
+      if (!lightbox) return;
+      function onKey(ev) { if (ev.key === "Escape") setLightbox(""); }
+      window.addEventListener("keydown", onKey);
+      return function () { window.removeEventListener("keydown", onKey); };
+    }, [lightbox]);
+    function photoUrl(key) { return API_BASE + "/api/rating-photo/" + String(key).split("/").map(encodeURIComponent).join("/"); }
+
     function loadRatings() {
       fetch(API_BASE + "/api/ratings?site=" + encodeURIComponent(siteId))
         .then(function (r) { return r.json(); })
@@ -565,23 +665,34 @@
       if (!form.rating) { setError("Tap a star to rate us first."); return; }
       setError("");
       setSubmitting(true);
-      fetch(API_BASE + "/api/ratings", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          site: siteId, name: form.name, rating: form.rating, comment: form.comment,
-          sessionId: (window.KCBridge && window.KCBridge.sessionId) || ""
-        }),
-      })
+      var sessionId = (window.KCBridge && window.KCBridge.sessionId) || "";
+      var request;
+      if (photos.length === 0) {
+        // No photos: identical to the original request.
+        request = {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ site: siteId, name: form.name, rating: form.rating, comment: form.comment, sessionId: sessionId }),
+        };
+      } else {
+        var fd = new FormData();
+        fd.append("site", siteId); fd.append("name", form.name); fd.append("rating", String(form.rating));
+        fd.append("comment", form.comment); fd.append("sessionId", sessionId);
+        photos.forEach(function (p, i) { fd.append("photos", p.file, (i + 1) + ".webp"); });
+        request = { method: "POST", body: fd }; // browser sets the multipart header itself
+      }
+      fetch(API_BASE + "/api/ratings", request)
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data && data.ok) {
             setJustSubmitted(true);
             setForm({ name: "", rating: 0, comment: "" });
+            clearPhotos();
             loadRatings();
           } else {
             setError((data && data.error === "too many requests")
     ? "You're submitting too fast — please wait a minute and try again."
+    : (data && data.photoError && data.message) ? data.message
     : "Something went wrong — please try again.");
           }
         })
@@ -662,6 +773,26 @@
                 onChange: function (e) { setForm(Object.assign({}, form, { comment: e.target.value })); },
                 className: "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-white/30 resize-none"
               }),
+              // ---- Optional photos ----
+              h(
+                "div", { className: "space-y-2" },
+                photos.length < MAX_PHOTOS && h(
+                  "label", { className: "flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-dashed border-white/20 hover:bg-white/10 transition text-sm text-white/70 cursor-pointer" },
+                  h("span", null, photoBusy ? "Preparing photos\u2026" : "\ud83d\udcf7 Add photos (optional, max 3)"),
+                  h("input", { type: "file", accept: "image/*", multiple: true, disabled: photoBusy, onChange: onPickPhotos, className: "hidden" })
+                ),
+                photos.length > 0 && h(
+                  "div", { className: "flex gap-2 flex-wrap" },
+                  photos.map(function (p, i) {
+                    return h(
+                      "div", { key: p.url, className: "relative w-16 h-16" },
+                      h("img", { src: p.url, alt: "Selected photo " + (i + 1), className: "w-16 h-16 rounded-lg object-cover border border-white/15" }),
+                      h("button", { type: "button", onClick: function () { removePhoto(i); }, "aria-label": "Remove photo " + (i + 1), className: "absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/80 border border-white/30 text-[11px] leading-none flex items-center justify-center" }, "\u00d7")
+                    );
+                  })
+                ),
+                photoError && h("div", { className: "text-amber-300 text-xs text-center" }, photoError)
+              ),
               error && h("div", { className: "text-red-400 text-xs text-center" }, error),
               h(
                 "div", { className: "flex gap-2" },
@@ -706,10 +837,25 @@
                 h("span", { className: "font-semibold text-sm" }, r.name),
                 h(Stars, { value: r.rating, size: 14 })
               ),
-              r.comment && h("p", { className: "text-white/70 text-sm leading-relaxed" }, r.comment)
+              r.comment && h("p", { className: "text-white/70 text-sm leading-relaxed" }, r.comment),
+              Array.isArray(r.photos) && r.photos.length > 0 && h(
+                "div", { className: "mt-3 flex gap-2" },
+                r.photos.slice(0, 3).map(function (key, i) {
+                  return h(
+                    "button", { key: key, type: "button", onClick: function () { setLightbox(photoUrl(key)); }, "aria-label": "Open photo " + (i + 1), className: "w-16 h-16 rounded-lg overflow-hidden border border-white/15" },
+                    h("img", { src: photoUrl(key), alt: "Visitor photo " + (i + 1), loading: "lazy", className: "w-full h-full object-cover" })
+                  );
+                })
+              )
             );
           })
         )
+      ),
+
+      lightbox && h(
+        "div", { onClick: function () { setLightbox(""); }, className: "fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4", role: "dialog", "aria-modal": "true" },
+        h("img", { src: lightbox, alt: "Visitor photo", className: "max-w-full max-h-full rounded-lg object-contain" }),
+        h("button", { type: "button", onClick: function () { setLightbox(""); }, "aria-label": "Close photo", className: "absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-2xl leading-none" }, "\u00d7")
       )
     );
   }
@@ -968,7 +1114,7 @@
 
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
     var bookingOpenState = useState(false); var bookingOpen = bookingOpenState[0], setBookingOpen = bookingOpenState[1];
-    var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
+        var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
 
     // Live ratings summary (average + count) — set by RatingsSection
     // once it loads/updates, read by the compact rating summary near
@@ -1040,6 +1186,55 @@
       }, 100);
       return function () { clearInterval(timer); };
     }, []);
+
+    // ---- Scroll effect (home page): cards shrink and fade as they reach the
+    // top or bottom edge of the screen, like scrolling the phone's
+    // notification shade. Cards at rest in the middle of the screen have no
+    // transform at all, so nothing else on the page is affected.
+    useEffect(function () {
+      if (page !== "home") return;
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var CARD = '[class*="rounded-[24px]"]';
+      var TOP = 100;   // bottom edge of the floating header
+      var ZONE = 150;  // distance over which the effect ramps in
+      var raf = 0;
+      function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+      function apply() {
+        raf = 0;
+        var H = window.innerHeight;
+        var all = document.querySelectorAll("main " + CARD);
+        for (var i = 0; i < all.length; i++) {
+          var el = all[i];
+          if (el.parentElement && el.parentElement.closest(CARD)) continue; // only outer cards
+          var r = el.getBoundingClientRect();
+          var t = 0, origin = "50% 50%";
+          if (r.height > 0) {
+            if (r.bottom < TOP + ZONE) { t = clamp(1 - (r.bottom - TOP) / ZONE); origin = "50% 100%"; }
+            else if (r.top > H - ZONE) { t = clamp((r.top - (H - ZONE)) / ZONE) * 0.7; origin = "50% 0%"; }
+          }
+          if (t < 0.01) {
+            if (el.style.transform || el.style.opacity) { el.style.transform = ""; el.style.opacity = ""; }
+          } else {
+            el.style.transformOrigin = origin;
+            el.style.transform = "scale(" + (1 - 0.07 * t).toFixed(3) + ")";
+            el.style.opacity = (1 - 0.7 * t).toFixed(3);
+          }
+        }
+      }
+      function queue() { if (!raf) raf = requestAnimationFrame(apply); }
+      window.addEventListener("scroll", queue, { passive: true });
+      window.addEventListener("resize", queue);
+      var timer = setInterval(queue, 400); // catches cards that open/close without scrolling
+      queue();
+      return function () {
+        window.removeEventListener("scroll", queue);
+        window.removeEventListener("resize", queue);
+        clearInterval(timer);
+        if (raf) cancelAnimationFrame(raf);
+        var all = document.querySelectorAll("main " + CARD);
+        for (var i = 0; i < all.length; i++) { all[i].style.transform = ""; all[i].style.opacity = ""; }
+      };
+    }, [page]);
 
     // ---- Notice popup: shows once per visitor, closable, admin-resettable ----
     var NOTICE = CONTENT.notice || {};
@@ -1431,9 +1626,9 @@ function closeNotice() {
               BOOKING.closing && BOOKING.closing.length > 0 && h(
                 GlassCard, { key: "closing", className: "p-4 md:p-12" },
                 h(
-                  "div", { className: "max-w-[640px] md:max-w-[960px] mx-auto text-center" },
+                  "div", { className: "max-w-[640px] md:max-w-[960px] mx-auto text-center space-y-2" },
                   BOOKING.closing.map(function (line, i) {
-                    return h("p", { key: i, className: "text-white/70 text-sm leading-relaxed" + (i ? " mt-2" : "") }, line);
+                    return h("p", { key: i, className: "text-white/70 text-sm leading-relaxed" }, line);
                   })
                 )
               )
