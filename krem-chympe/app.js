@@ -695,6 +695,14 @@
   function privatePackageTotals(f) {
     var PP = PRICES.privatePackage;
     var people = Math.max(1, Number(f.people || 1));
+    // Children (same rule as the Shared Tour): a child at/above childFreeAge
+    // counts as a paying person for every per-person charge; a younger child
+    // is free but pays the small life jacket + entry fee, and only when
+    // Adventure Activities are part of the booking.
+    var kidAges = f.childAges || [];
+    var payingChildren = payingChildrenCount(kidAges);
+    var freeChildren = kidAges.length - payingChildren;
+    var payingPersons = people + payingChildren;
 
     var jeepCost = f.jeep === "yes" ? PP.jeep : 0;
     var campingOn = f.camping === "yes";
@@ -702,7 +710,8 @@
     // camping is chosen, the (mandatory) Overnight Guide fee below covers
     // guiding instead, so the separate Local Guide fee must not be charged.
     var guideCost = campingOn ? 0 : PP.guide;
-    var activitiesCost = f.adventure === "yes" ? people * PP.adventurePerPerson : 0;
+    var activitiesCost = f.adventure === "yes" ? payingPersons * PP.adventurePerPerson : 0;
+    var childFeeCost = f.adventure === "yes" ? freeChildren * freeChildFee() : 0;
 
     var lunchLines = PP.thaliTypes.map(function (th) {
       var qty = Number((f.lunchQty || {})[th.id] || 0);
@@ -711,7 +720,7 @@
     var lunchCost = lunchLines.reduce(function (s, l) { return s + l.cost; }, 0);
 
     var tentCost = campingOn ? Number(f.tents || 0) * PP.campingTent : 0;
-    var campingMealsCost = campingOn && f.campingMeals === "yes" ? people * PP.campingMealsPerPerson : 0;
+    var campingMealsCost = campingOn && f.campingMeals === "yes" ? payingPersons * PP.campingMealsPerPerson : 0;
     var overnightGuideCost = campingOn ? PP.overnightGuide : 0;
     var bambooLines = campingOn ? PRICES.bambooMenu.map(function (item) {
       var qty = Number((f.bambooQty || {})[item.id] || 0);
@@ -720,11 +729,13 @@
     var bambooCost = bambooLines.reduce(function (s, l) { return s + l.cost; }, 0);
 
     return {
-      people: people, jeepCost: jeepCost, guideCost: guideCost, activitiesCost: activitiesCost,
+      people: people, payingChildren: payingChildren, freeChildren: freeChildren, payingPersons: payingPersons,
+      totalGuests: people + kidAges.length, childFeeCost: childFeeCost,
+      jeepCost: jeepCost, guideCost: guideCost, activitiesCost: activitiesCost,
       lunchLines: lunchLines, lunchCost: lunchCost,
       campingOn: campingOn, tentCost: tentCost, campingMealsCost: campingMealsCost,
       overnightGuideCost: overnightGuideCost, bambooLines: bambooLines, bambooCost: bambooCost,
-      grandTotal: jeepCost + guideCost + activitiesCost + lunchCost + tentCost + campingMealsCost + overnightGuideCost + bambooCost
+      grandTotal: jeepCost + guideCost + activitiesCost + childFeeCost + lunchCost + tentCost + campingMealsCost + overnightGuideCost + bambooCost
     };
   }
 
@@ -914,7 +925,7 @@
     var sharedTourForm = sharedTourState[0], setSharedTourForm = sharedTourState[1];
 
 
-    var privateState = useState({ people: 1, jeep: "no", adventure: "yes", lunchQty: {}, camping: "no", tents: 1, campingMeals: "yes", bambooQty: {} });
+    var privateState = useState({ people: 1, children: 0, childAges: [], jeep: "no", adventure: "yes", lunchQty: {}, camping: "no", tents: 1, campingMeals: "yes", bambooQty: {} });
     var privateForm = privateState[0], setPrivateForm = privateState[1];
 
     // Minimum advance is read from PRICES.minAdvance (admin-editable) so
@@ -1232,7 +1243,7 @@
       setPkg(null);
       setContact({ name: "", whatsapp: "", date: "", specialRequest: "" });
       setSharedTourForm({ adults: 2, children: 0, childAges: [], lunchQty: {} });
-      setPrivateForm({ people: 1, jeep: "no", adventure: "yes", lunchQty: {}, camping: "no", tents: 1, campingMeals: "yes", bambooQty: {} });
+      setPrivateForm({ people: 1, children: 0, childAges: [], jeep: "no", adventure: "yes", lunchQty: {}, camping: "no", tents: 1, campingMeals: "yes", bambooQty: {} });
       setAdvance("");
       setPayTab("qr");
       setReceiptOk(false);
@@ -1252,7 +1263,7 @@
       if (saved.pkg) setPkg(saved.pkg);
       if (saved.contact) setContact(saved.contact);
       if (saved.sharedTourForm) setSharedTourForm(saved.sharedTourForm);
-      if (saved.privateForm) setPrivateForm(saved.privateForm);
+      if (saved.privateForm) setPrivateForm(Object.assign({ children: 0, childAges: [] }, saved.privateForm));
       if (saved.advance !== undefined) setAdvance(saved.advance);
       if (saved.payTab) setPayTab(saved.payTab);
       if (saved.receiptOk) setReceiptOk(true);
@@ -1570,7 +1581,7 @@
           package: packageLabel,
           people:
             pkg === "sharedTour" ? (totals.payingPersons || 0) + (totals.freeChildren || 0) :
-            pkg === "privatePackage" ? totals.people :
+            pkg === "privatePackage" ? totals.totalGuests :
             null,
           total: grandTotal,
           advance: advance,
@@ -1599,7 +1610,7 @@
     // it. This is the same formula as computeReferralDiscount() in the
     // backend's referrals.js — the backend re-checks it on submit, so
     // keep the two identical.
-    var referralTotalPersons = pkg === "sharedTour" ? (totals.payingPersons || 0) : pkg === "privatePackage" ? (totals.people || 0) : 0;
+    var referralTotalPersons = pkg === "sharedTour" ? (totals.payingPersons || 0) : pkg === "privatePackage" ? (totals.payingPersons || 0) : 0;
     var referralCoveredPeople = 0;
     var referralDiscountAmount = 0;
     var referralBase = 0;
@@ -1764,7 +1775,8 @@
             ? [t("localGuideWaivedLabel", "Local Guide (waived — covered by Overnight Guide)"), "₹0"]
             : [t("localGuideMandatoryLabel", "Local Guide (mandatory)"), money(totals.guideCost)]
         );
-        if (totals.activitiesCost > 0) ppLines.push([t("adventureActivitiesLabel", "Adventure Activities") + " (" + totals.people + " " + t("peopleWord", "people") + ")", money(totals.activitiesCost)]);
+        if (totals.activitiesCost > 0) ppLines.push([t("adventureActivitiesLabel", "Adventure Activities") + " (" + totals.payingPersons + " " + t("peopleWord", "people") + ")", money(totals.activitiesCost)]);
+        if (totals.childFeeCost > 0) ppLines.push([t("lifeJacketFeeLabel", "Life Jacket & Entry Fee") + " (" + totals.freeChildren + " " + t("freeChildWord", "free child") + (totals.freeChildren === 1 ? "" : "ren") + ")", money(totals.childFeeCost)]);
         totals.lunchLines.forEach(function (l) { if (l.qty > 0) ppLines.push([l.name + " x" + l.qty, money(l.cost)]); });
         if (totals.campingOn) {
           ppLines.push([t("campingTentRentalLabel", "Camping Tent Rental"), money(totals.tentCost)]);
@@ -1807,7 +1819,12 @@
     // itemized breakdown, totals, payment method, everything).
     function buildBookingMessageText() {
       var group = pkg === "sharedTour" ? formatGroup(sharedTourForm.adults, sharedTourForm.childAges)
-        : pkg === "privatePackage" ? (privateForm.people + " Guest" + (privateForm.people === 1 ? "" : "s"))
+        : pkg === "privatePackage" ? (function () {
+            var g = privateForm.people + " Guest" + (privateForm.people === 1 ? "" : "s");
+            var kids = (privateForm.childAges || []).filter(function (a) { return a !== "" && a !== null && a !== undefined; });
+            if (kids.length) g += " + " + kids.length + " Child" + (kids.length === 1 ? "" : "ren") + " (" + kids.join(", ") + (kids.length === 1 ? " year" : " years") + ")";
+            return g;
+          })()
         : "";
       var paymentMethod = payTab === "qr" ? "QR Code" : payTab === "upi" ? "UPI" : "Bank Transfer";
       var detailLines = invoiceLines().map(function (l) { return "• " + l[0] + ": " + l[1]; }).join("\n");
@@ -2491,6 +2508,21 @@
           h("span", { className: "text-sm" }, privateForm.people, " " + PPB.peopleLabel),
           h(Stepper, { value: privateForm.people, min: 1, onChange: function (v) { setPrivateForm(Object.assign({}, privateForm, { people: v })); } })
         )
+      ),
+
+      // Children (free under childFreeAge; ages needed for pricing)
+      h(
+        "div", { className: "space-y-2" },
+        h(
+          "label", { className: "space-y-2 block" },
+          h("span", { className: "text-xs text-white/60" }, STB.childrenLabel || "Children"),
+          h("div", { className: "flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/10" },
+            h("span", { className: "text-sm" }, privateForm.children || 0, " " + (STB.childrenLabel || "Children")),
+            h(Stepper, { value: privateForm.children || 0, onChange: function (v) { setPrivateForm(Object.assign({}, privateForm, { children: v, childAges: syncAges(privateForm.childAges || [], v) })); } })
+          )
+        ),
+        h(ChildAgesInput, { count: privateForm.children || 0, ages: privateForm.childAges || [], onChange: function (ages) { setPrivateForm(Object.assign({}, privateForm, { childAges: ages })); } }),
+        h("div", { className: "text-[11px] text-white/50" }, fill(STB.childFreeText, pkgFillValues) + " (Life jacket & entry fee apply with Adventure Activities.)")
       ),
 
       // 4x4 Jeep
