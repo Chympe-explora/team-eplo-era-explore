@@ -1249,7 +1249,7 @@
       if (!saved) return;
       if (saved.pkg) setPkg(saved.pkg);
       if (saved.contact) setContact(saved.contact);
-      if (saved.sharedTourForm) setSharedTourForm(saved.sharedTourForm);
+      if (saved.sharedTourForm) setSharedTourForm(Object.assign({}, saved.sharedTourForm, { children: 0, childAges: [] }));
       if (saved.privateForm) setPrivateForm(saved.privateForm);
       if (saved.advance !== undefined) setAdvance(saved.advance);
       if (saved.payTab) setPayTab(saved.payTab);
@@ -1740,10 +1740,10 @@
     function invoiceLines() {
       if (pkg === "sharedTour") {
         var stLines = [
-          ["Adults", totals.adults],
-          ["Children (Free)", totals.freeChildren],
-          ["Paying Persons", totals.payingPersons]
+          ["Adults", totals.adults]
         ];
+        if (totals.freeChildren > 0) stLines.push(["Children (Free)", totals.freeChildren]);
+        stLines.push(["Paying Persons", totals.payingPersons]);
         if (totals.salePercent > 0) {
           stLines.push(["Price Per Person (was " + money(totals.originalPricePerPerson) + ")", money(totals.pricePerPerson) + " (" + totals.salePercent + "% off)"]);
         } else {
@@ -2419,11 +2419,9 @@
         toLines(STB.batchText).map(function (line, i) { return h("div", { key: i, className: "mt-2 text-white/50" }, fill(line, pkgFillValues)); })
       ),
       h(
-        "div", { className: "grid md:grid-cols-2 gap-5" },
-        h("label", { className: "space-y-2 block" }, h("span", { className: "text-xs text-white/60" }, STB.adultsLabel), h("div", { className: "flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/10" }, h("span", { className: "text-sm" }, sharedTourForm.adults, " " + STB.adultsLabel), h(Stepper, { value: sharedTourForm.adults, min: 1, onChange: function (v) { setSharedTourForm(Object.assign({}, sharedTourForm, { adults: v })); } }))),
-        h("label", { className: "space-y-2 block" }, h("span", { className: "text-xs text-white/60" }, STB.childrenLabel), h("div", { className: "flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/10" }, h("span", { className: "text-sm" }, sharedTourForm.children, " " + STB.childrenLabel), h(Stepper, { value: sharedTourForm.children, onChange: function (v) { setSharedTourForm(Object.assign({}, sharedTourForm, { children: v, childAges: syncAges(sharedTourForm.childAges, v) })); } })))
+        "div", { className: "grid gap-5" },
+        h("label", { className: "space-y-2 block" }, h("span", { className: "text-xs text-white/60" }, STB.adultsLabel), h("div", { className: "flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/10" }, h("span", { className: "text-sm" }, sharedTourForm.adults, " " + STB.adultsLabel), h(Stepper, { value: sharedTourForm.adults, min: 1, onChange: function (v) { setSharedTourForm(Object.assign({}, sharedTourForm, { adults: v })); } })))
       ),
-      h(ChildAgesInput, { count: sharedTourForm.children, ages: sharedTourForm.childAges, onChange: function (ages) { setSharedTourForm(Object.assign({}, sharedTourForm, { childAges: ages })); } }),
       // Live running total for the currently-selected people count — this
       // used to be a leftover "lunch add-on" card copied from the Krem
       // Chympe template (this package has no lunch add-on, so every field
