@@ -2196,7 +2196,7 @@
         "div", { className: "kc-split-stack" },
         // Header card: title, subtitle, intro
         h(
-          GlassCard, { className: "kc-split-head p-4 md:p-10" },
+          GlassCard, { className: "kc-split-head p-6 md:p-10" },
           h("h2", { className: "text-2xl md:text-3xl font-semibold text-center tracking-tight" }, WHY_VISIT.title),
           WHY_VISIT.subtitle && h("p", { className: "mt-2 text-white/80 text-base font-medium text-center" }, WHY_VISIT.subtitle),
           WHY_VISIT.intro && h("p", { className: "mt-4 text-white/60 text-sm leading-relaxed text-center max-w-[720px] mx-auto" }, WHY_VISIT.intro)
@@ -2204,7 +2204,7 @@
         // One card per journey
         WHY_VISIT.journeys.map(function (j) {
           return h(
-            GlassCard, { key: j.number, className: "p-4 md:p-8" },
+            GlassCard, { key: j.number, className: "p-6 md:p-8" },
             h(
               "div", { className: "flex items-center gap-3" },
               h("span", { className: "text-2xl" }, j.emoji),
