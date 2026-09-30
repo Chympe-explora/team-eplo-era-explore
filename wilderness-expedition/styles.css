@@ -266,16 +266,12 @@ input[type="file"]:hover::file-selector-button {
 
 
 /* ============================================================
-   WIDER CARDS + TIGHT GAP BETWEEN SPLIT CARDS (phones only, <768px)
-   Cards run almost edge-to-edge (4px side margin) and text sits
-   16px inside each card. Only the cards that were split out of one
-   section (.kc-card-stack / .kc-split-stack) sit 10px apart; the gap
-   between different sections is the original one.
-   Tablet/desktop layout is unchanged.
+   TIGHT GAP BETWEEN SPLIT CARDS (phones only, <768px)
+   Only the cards that were split out of one section
+   (.kc-card-stack / .kc-split-stack) sit 10px apart. Card width and
+   the gap between different sections are the original ones.
    ============================================================ */
 .kc-card-stack{display:flex;flex-direction:column}
 @media (max-width:767px){
-  main[class*="pb-32"]{padding-left:4px;padding-right:4px}
   .kc-card-stack>*+*{margin-top:10px!important}
-  main[class*="pb-32"] div[class*="rounded-[24px]"][class*=" p-"]{padding-left:16px;padding-right:16px}
 }
