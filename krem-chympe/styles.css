@@ -284,3 +284,21 @@ input[type="file"]:hover::file-selector-button {
 @media (max-width:767px){
   .kc-card-stack>*+*{margin-top:10px!important}
 }
+
+
+/* ============================================================
+   PAGE-TO-PAGE TRANSITION
+   Moving between the home page and a destination (or back) fades
+   the old page out and the new one in, instead of a hard cut.
+   Browsers that don't support it just navigate normally. The
+   animations inside each page are in motion.js.
+   ============================================================ */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:kc-vt-out .32s cubic-bezier(.4,0,1,1) both}
+::view-transition-new(root){animation:kc-vt-in .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes kc-vt-out{to{opacity:0;transform:scale(.985) translateY(-8px)}}
+@keyframes kc-vt-in{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){
+  @view-transition{navigation:none}
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
+}
