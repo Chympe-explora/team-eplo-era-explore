@@ -92,6 +92,13 @@
        remove, the site still renders fine with its normal styling. -->
   <script src="typography-system.js?v=2" defer></script>
 
+  <!-- Site-wide animations (page opening, scroll reveals, counters,
+       hover/click effects). One self-contained file — settings are the
+       plain-English numbers at the top of motion.js. Respects the
+       visitor's "Reduce motion" setting. Must load BEFORE app.js;
+       safe to remove, the site still works exactly as before. -->
+  <script src="motion.js?v=1" defer></script>
+
   <!-- Tailwind CSS (JIT engine loaded live from the CDN) — generates every
        utility class app.js uses, on the fly, so no class is ever missing
        no matter what markup/content changes are made later. -->

@@ -71,6 +71,11 @@
   if (!SHOW_EVERY_TIME) {
     try { alreadySeen = sessionStorage.getItem("kc_intro_seen") === "1"; } catch (e) {}
   }
+  // Visitors who turned on "Reduce motion" in their phone/computer
+  // settings skip the full-screen video entirely.
+  try {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) alreadySeen = true;
+  } catch (e) {}
   if (alreadySeen) {
     overlay.parentNode && overlay.parentNode.removeChild(overlay);
     return;
