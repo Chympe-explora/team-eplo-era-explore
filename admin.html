@@ -1,640 +1,367 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Team Explo Era — Super Admin Dashboard</title>
-<!--
-  Fully client-side — no backend, no Render, no Cloudflare Worker, no
-  Telegram bot. Everything the admin edits here is saved straight into
-  this browser's localStorage, and index.html reads it from the same
-  place (live, via a "storage" event listener) when opened in the same
-  browser. See ../README.md for the "why" and the per-device limitation.
--->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Team Explo Era — Dashboard</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<!-- Uses the same Worker as the website (teamexploera-backend). Sign in = password + 6-digit Telegram code.
+     The Worker's SITE_B_ORIGIN must list this site's address (see DASHBOARD-A-SETUP.md). -->
 <style>
-  :root{ color-scheme: dark; --brand:#2E8B57; --brand-dark:#257a4b; }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; min-height:100vh; font-family:'Inter','Poppins',system-ui,-apple-system,sans-serif;
-    color:#f2f4f8; padding:16px 16px 60px;
-    background: radial-gradient(1200px 600px at 20% -10%, rgba(46,139,87,0.22), transparent 60%),
-                radial-gradient(900px 600px at 110% 10%, rgba(184,134,59,0.10), transparent 55%),
-                linear-gradient(160deg,#0b140f,#0f1c15 55%,#0b140f);
-    background-attachment: fixed;
-  }
-  .wrap{max-width:760px;margin:0 auto;}
-  .card{
-    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
-    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    border-radius:20px; padding:20px; margin-bottom:14px;
-  }
-  h1{font-size:21px; margin:0 0 4px; font-weight:800;}
-  h2{font-size:15px; margin:0 0 10px; font-weight:700;}
-  .sub{opacity:0.65; font-size:13px; margin:0 0 18px; line-height:1.5;}
-  label{display:block; font-size:12px; opacity:0.75; margin-bottom:6px; margin-top:14px;}
-  input,select{
-    width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.15);
-    background:rgba(0,0,0,0.25); color:#fff; font-size:15px; font-family:inherit;
-  }
-  input:focus,select:focus{outline:none; border-color:var(--brand);}
-  button{
-    padding:11px 16px; border:none; border-radius:999px;
-    background:var(--brand); color:#fff; font-weight:700; font-size:14px; cursor:pointer;
-    font-family:inherit;
-  }
-  button:hover{background:var(--brand-dark);}
-  button:disabled{opacity:0.5; cursor:default;}
-  button.ghost{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); color:#fff;}
-  button.danger{background:#c0392b;}
-  button.small{padding:7px 12px; font-size:12px;}
-  button.full{width:100%; margin-top:14px;}
-  .err{color:#ff9b9b; font-size:13px; margin-top:10px; min-height:16px;}
-  .ok{color:#7dffc0; font-size:13px; margin-top:10px; min-height:16px;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; flex-wrap:wrap;}
-  .tabs{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
-  .tab{padding:8px 14px; border-radius:999px; background:rgba(255,255,255,0.07); font-size:13px; cursor:pointer; border:1px solid transparent;}
-  .tab.active{background:var(--brand); font-weight:700;}
-  .priceField{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.06);}
-  .priceField label{margin:0; flex:1;}
-  .priceField input{width:130px; text-align:right;}
-  .hidden{display:none !important;}
-  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-  .stat{background:rgba(255,255,255,0.05); border-radius:14px; padding:18px; text-align:center;}
-  .stat .num{font-size:26px; font-weight:800; color:#7dffc0;}
-  .stat .lbl{font-size:11px; opacity:0.6; margin-top:4px;}
-  .item-row{display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);}
-  .item-row input{flex:1;}
-  .item-row input.price{max-width:100px; text-align:right; flex:none;}
-  .item-row button{flex:none;}
-  .power-badge{font-size:11px; padding:4px 10px; border-radius:999px; background:rgba(46,139,87,0.25); border:1px solid rgba(46,139,87,0.5); color:#a8ffcf; font-weight:700;}
+:root{--brand:#2E8B57;--brand2:#257a4b;--glass:rgba(255,255,255,.10);--glass2:rgba(255,255,255,.16);--line:rgba(255,255,255,.22);--mut:rgba(255,255,255,.62);--ease:cubic-bezier(.2,.8,.2,1)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;background:#0b140f;padding:max(14px,env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));animation:pageIn .6s var(--ease) both}
+@keyframes pageIn{from{opacity:0}to{opacity:1}}
+#bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:#0b140f url("Trek Trail Mist.jpg") center/cover}
+#bg video{width:100%;height:100%;object-fit:cover;opacity:.9}
+#bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(5,12,8,.72))}
+.wrap{max-width:780px;margin:0 auto}
+.glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);box-shadow:0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)}
+.hidden{display:none!important}
+.top{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:999px;margin-bottom:14px;animation:dropIn .7s var(--ease) both}
+.top img{width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid var(--line)}
+.top .nm{font-weight:700;letter-spacing:.12em;font-size:13px}.top .sb{font-size:10px;letter-spacing:.18em;color:var(--mut);margin-top:1px}
+.top .sp{flex:1}
+@keyframes dropIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+.btn{position:relative;overflow:hidden;border:1px solid var(--line);background:var(--glass2);color:#fff;font-weight:600;font-size:13px;font-family:inherit;padding:11px 16px;border-radius:999px;cursor:pointer;transition:transform .18s var(--ease),background .2s,box-shadow .2s;display:inline-block;line-height:1.1}
+.btn:hover{background:rgba(255,255,255,.24)}.btn:active{transform:scale(.94)}
+.btn.pri{background:var(--brand);border-color:transparent}.btn.pri:hover{background:var(--brand2);box-shadow:0 6px 18px rgba(46,139,87,.45)}
+.btn.bad{background:rgba(192,57,43,.85);border-color:transparent}
+.btn.sm{padding:9px 13px;font-size:12px}
+.btn:disabled{opacity:.55;pointer-events:none}
+.btn.busy{padding-right:30px}
+.btn.busy::after{content:"";position:absolute;right:10px;top:50%;width:12px;height:12px;margin-top:-6px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login{max-width:420px;margin:12vh auto 0;border-radius:28px;padding:28px 24px;animation:rise .7s var(--ease) both}
+.login h1{font-size:24px;margin:0 0 4px;font-weight:700}.login p{color:var(--mut);font-size:13px;margin:0}
+.login.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+input,textarea{width:100%;padding:13px 15px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.28);color:#fff;font-size:15px;line-height:1.4;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+input:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(46,139,87,.3);background:rgba(0,0,0,.4)}
+textarea{resize:vertical;min-height:56px}
+.err{color:#ffb4b4;font-size:13px;min-height:18px}
+.stack>*+*{margin-top:14px}
+.chips,.tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;animation:rise .6s .1s var(--ease) both}
+.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
+.chip,.tab{position:relative;overflow:hidden;flex:0 0 auto;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:#fff;font-weight:600;font-size:13px;font-family:inherit;cursor:pointer;transition:all .25s var(--ease)}
+.chip:active,.tab:active{transform:scale(.93)}
+.chip.on,.tab.on{background:var(--brand);border-color:transparent;box-shadow:0 6px 18px rgba(46,139,87,.4);transform:translateY(-1px)}
+.panel{animation:panelIn .45s var(--ease) both}
+@keyframes panelIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.panel.back{animation-name:panelBack}
+@keyframes panelBack{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+.card{border-radius:22px;padding:16px;margin-bottom:12px;animation:rise .55s var(--ease) both;animation-delay:calc(var(--i,0)*60ms);transition:transform .25s var(--ease),opacity .35s}
+.card:hover{transform:translateY(-2px)}
+.card.out{opacity:0;transform:translateX(60px) scale(.9)}
+.card.hid{opacity:.6}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stars{color:#f5b301;letter-spacing:.12em;white-space:nowrap}
+.nm2{font-weight:700;font-size:15px}.meta{color:var(--mut);font-size:12px}
+.pin{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(245,179,1,.2);color:#ffd36b;margin-left:6px;animation:pop .4s var(--ease)}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.cm{margin:8px 0 0;color:rgba(255,255,255,.88);font-size:14px;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap}
+.dots{display:flex;gap:8px;margin-top:10px}
+.dot{width:44px;height:44px;border-radius:50%;overflow:hidden;padding:0;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.1);cursor:zoom-in;transition:transform .2s var(--ease)}
+.dot:hover{transform:scale(1.12)}.dot:active{transform:scale(.9)}
+.dot img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.empty{text-align:center;color:var(--mut);padding:40px 10px;animation:rise .6s var(--ease) both}
+.search{margin-bottom:12px}
+.sec{border-radius:20px;margin-bottom:10px;overflow:hidden;animation:rise .5s var(--ease) both;animation-delay:calc(var(--i,0)*40ms)}
+.sec>button{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;padding:15px 16px;font-weight:700;cursor:pointer;position:relative;overflow:hidden}
+.sec>button .ct{font-weight:500;color:var(--mut);font-size:12px;margin-left:8px}
+.sec>button .ar{transition:transform .3s var(--ease)}
+.sec.open>button .ar{transform:rotate(180deg)}
+.sec .body{display:none;padding:0 14px 14px}
+.sec.open .body{display:block;animation:rise .4s var(--ease) both}
+.fld{margin-top:12px}
+.fld label{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-bottom:5px;gap:8px;word-break:break-all}
+.fld.mod input,.fld.mod textarea{border-color:#f5b301;box-shadow:0 0 0 3px rgba(245,179,1,.18)}
+.fld .rst{all:unset;cursor:pointer;color:#9fe3bd;font-weight:600;flex:0 0 auto}
+.savebar{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:50;pointer-events:none}
+.savebar>div{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 18px;border-radius:999px;animation:barUp .45s var(--ease) both}
+@keyframes barUp{from{transform:translateY(80px);opacity:0}to{transform:none;opacity:1}}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translateX(-50%);z-index:99999;padding:12px 18px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(20,40,28,.94);border:1px solid var(--line);animation:toast 3s var(--ease) both;max-width:92vw;text-align:center}
+.toast.bad{background:rgba(120,30,30,.96)}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-24px) scale(.9)}10%,85%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-14px)}}
+.ov{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px;animation:fade .25s both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{max-width:340px;width:100%;border-radius:24px;padding:22px;background:rgba(18,32,24,.94);animation:popIn .4s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes popIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.modal h3{margin:0 0 6px}.modal p{color:var(--mut);margin:0 0 16px;font-size:14px}
+.modal .acts{justify-content:flex-end;margin:0}
+.lb{cursor:zoom-out}.lb img{max-width:96vw;max-height:90vh;border-radius:10px;object-fit:contain;animation:lbPop .4s cubic-bezier(.2,.9,.3,1.15) both;box-shadow:0 12px 50px rgba(0,0,0,.6)}
+@keyframes lbPop{from{opacity:0;transform:scale(.15)}to{opacity:1;transform:none}}
+.skel{height:84px;border-radius:22px;margin-bottom:12px;background:linear-gradient(100deg,rgba(255,255,255,.06) 30%,rgba(255,255,255,.16) 50%,rgba(255,255,255,.06) 70%);background-size:200% 100%;animation:sh 1.2s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.kc-ripple{position:fixed;z-index:2147483000;pointer-events:none;border-radius:50%;width:20px;height:20px;margin:-10px 0 0 -10px;background:radial-gradient(circle,rgba(255,255,255,.55) 0,rgba(120,220,170,.35) 45%,rgba(255,255,255,0) 70%);border:1.5px solid rgba(255,255,255,.45);animation:kcRipple .75s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes kcRipple{from{transform:scale(.3);opacity:.95}to{transform:scale(9);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}.kc-ripple{display:none}}
 </style>
 </head>
 <body>
+<div id="bg"><video id="bgv" autoplay muted loop playsinline preload="metadata" poster="Trek Trail Mist.jpg"><source src="hero-video.mp4" type="video/mp4"></video></div>
+
 <div class="wrap">
+  <form id="login" class="login glass stack" autocomplete="off">
+    <div style="text-align:center"><img src="logo.png" alt="" width="64" height="64" style="border-radius:50%;object-fit:cover;border:1px solid var(--line)"></div>
+    <div style="text-align:center"><h1>Dashboard</h1><p>Sign in to manage Team Explo Era</p></div>
+    <div id="stepPw"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"></div>
+    <div id="stepCode" class="hidden"><input id="code" inputmode="numeric" maxlength="6" placeholder="6-digit code from Telegram" autocomplete="one-time-code"></div>
+    <button id="loginBtn" class="btn pri" style="width:100%;padding:14px" type="submit">Sign in</button>
+    <div class="err" id="loginErr" role="alert"></div>
+  </form>
 
-  <div id="loginView">
-    <div class="card" style="text-align:center;">
-      <div style="font-size:40px;">🌿</div>
-      <h1 style="margin-top:8px;">Krem Chympe</h1>
-      <p class="sub">Super Admin Dashboard — full control over prices, items, and site content.</p>
-      <label style="text-align:left;">Password</label>
-      <input type="password" id="loginPassword" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
-      <button class="full" onclick="doLogin()">Log In</button>
-      <div class="err" id="loginErr"></div>
-      <p class="sub" style="margin:14px 0 0;font-size:11px;">Default password: <b>ChangeMe@2024</b> — change it under Settings after logging in. This is a client-side gate only (no server), so treat it as keeping casual visitors out, not real security.</p>
-    </div>
-  </div>
-
-  <div id="appView" class="hidden">
-    <div class="topbar">
-      <div>
-        <h1>🌿 Super Admin</h1>
-        <span class="power-badge">Full control — no backend</span>
-      </div>
-      <button class="ghost small" onclick="logout()">Log Out</button>
-    </div>
-
-    <div class="tabs">
-      <div class="tab active" data-tab="prices" onclick="switchTab('prices')">💰 Prices</div>
-      <div class="tab" data-tab="items" onclick="switchTab('items')">🍢 Items</div>
-      <div class="tab" data-tab="content" onclick="switchTab('content')">✏️ Content</div>
-      <div class="tab" data-tab="visitors" onclick="switchTab('visitors')">📊 Visitors</div>
-      <div class="tab" data-tab="bookings" onclick="switchTab('bookings')">📖 Bookings</div>
-      <div class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</div>
-    </div>
-
-    <!-- PRICES -->
-    <div id="tab-prices">
-      <div class="card">
-        <h2>Shared Tour</h2>
-        <div class="priceField"><label>Per person (₹)</label><input type="number" id="p_sharedTour_perPerson"></div>
-        <div class="priceField"><label>Lunch thali price (₹)</label><input type="number" id="p_sharedTour_lunchThaliPrice"></div>
-      </div>
-      <div class="card">
-        <h2>Camping</h2>
-        <div class="priceField"><label>Tent (per tent, ₹)</label><input type="number" id="p_camping_tentUnit"></div>
-        <div class="priceField"><label>Meals (per person, ₹)</label><input type="number" id="p_camping_mealsPerPerson"></div>
-        <div class="priceField"><label>Overnight guide (₹)</label><input type="number" id="p_camping_overnightGuide"></div>
-        <div class="priceField"><label>4x4 Jeep (₹)</label><input type="number" id="p_camping_jeep"></div>
-        <div class="priceField"><label>Activities (per person, ₹)</label><input type="number" id="p_camping_activitiesPerPerson"></div>
-      </div>
-      <div class="card">
-        <h2>Private Package</h2>
-        <div class="priceField"><label>4x4 Jeep (₹)</label><input type="number" id="p_privatePackage_jeep"></div>
-        <div class="priceField"><label>Local guide (₹)</label><input type="number" id="p_privatePackage_guide"></div>
-        <div class="priceField"><label>Adventure (per person, ₹)</label><input type="number" id="p_privatePackage_adventurePerPerson"></div>
-        <div class="priceField"><label>Lunch thali price (₹)</label><input type="number" id="p_privatePackage_lunchThaliPrice"></div>
-        <div class="priceField"><label>Camping tent (₹)</label><input type="number" id="p_privatePackage_campingTent"></div>
-        <div class="priceField"><label>Camping meals (per person, ₹)</label><input type="number" id="p_privatePackage_campingMealsPerPerson"></div>
-        <div class="priceField"><label>Overnight guide (₹)</label><input type="number" id="p_privatePackage_overnightGuide"></div>
-      </div>
-      <div class="card">
-        <h2>Other</h2>
-        <div class="priceField"><label>Child free age (below this = free)</label><input type="number" id="p_childFreeAge"></div>
-        <div class="priceField"><label>Minimum advance payment (₹)</label><input type="number" id="p_minAdvance"></div>
-      </div>
-      <button class="full" onclick="savePrices()">Save Prices — Live Instantly</button>
-      <div class="ok" id="pricesOk"></div>
-      <div class="err" id="pricesErr"></div>
-    </div>
-
-    <!-- ITEMS -->
-    <div id="tab-items" class="hidden">
-      <div class="card">
-        <h2>Bamboo Menu (Camping add-ons)</h2>
-        <p class="sub" style="margin:0 0 6px;">Add, rename, reprice, or remove any item. Changes apply to every package that uses this menu.</p>
-        <div id="bambooList"></div>
-        <button class="ghost full" onclick="addBambooItem()">+ Add Item</button>
-      </div>
-      <div class="card">
-        <h2>Thali Types</h2>
-        <p class="sub" style="margin:0 0 6px;">Used for lunch selection on Shared Tour and Private Package.</p>
-        <div id="thaliList"></div>
-        <button class="ghost full" onclick="addThaliItem()">+ Add Thali Type</button>
-      </div>
-      <button class="full" onclick="saveItems()">Save Items — Live Instantly</button>
-      <div class="ok" id="itemsOk"></div>
-      <div class="err" id="itemsErr"></div>
-    </div>
-
-    <!-- CONTENT -->
-    <div id="tab-content" class="hidden">
-      <div class="card">
-        <h2>Site Identity</h2>
-        <label>Site Name</label><input type="text" id="c_siteName">
-        <label>Site Subtitle</label><input type="text" id="c_siteSub">
-        <label>Instagram Link</label><input type="text" id="c_instagram">
-      </div>
-      <div class="card">
-        <h2>Booking &amp; Payment Contact</h2>
-        <label>WhatsApp Number (digits only, with country code)</label><input type="text" id="c_whatsapp">
-        <label>UPI ID</label><input type="text" id="c_upiId">
-        <label>Bank Account Name</label><input type="text" id="c_bankName">
-        <label>Bank Account Number</label><input type="text" id="c_bankAccount">
-        <label>IFSC Code</label><input type="text" id="c_bankIfsc">
-        <label>Bank Name / Branch</label><input type="text" id="c_bankBankName">
-      </div>
-      <button class="full" onclick="saveContent()">Save Content — Live Instantly</button>
-      <div class="ok" id="contentOk"></div>
-      <div class="err" id="contentErr"></div>
-    </div>
-
-    <!-- VISITORS -->
-    <div id="tab-visitors" class="hidden">
-      <div class="card">
-        <h2>Visitor Counter</h2>
-        <p class="sub" style="margin:0 0 12px;">Every visit to the site (in this browser) bumps this counter by one. The same number is used as the reference code (e.g. #0007) in every WhatsApp booking message sent from this device.</p>
-        <div class="stat-grid">
-          <div class="stat"><div class="num" id="visitorCount">0</div><div class="lbl">Total Visits (this device)</div></div>
-        </div>
-        <button class="ghost full" onclick="resetVisitorCount()">Reset Counter to 0000</button>
-      </div>
-    </div>
-
-    <!-- BOOKINGS -->
-    <div id="tab-bookings" class="hidden">
-      <div class="card">
-        <h2>Bookings</h2>
-        <p class="sub" style="margin:0 0 12px;">Every booking submitted from this device. WhatsApp doesn't report back automatically — update the status here after you confirm with the guest on WhatsApp.</p>
-        <div class="stat-grid" style="margin-bottom:14px;">
-          <div class="stat"><div class="num" id="bookingsTotal">0</div><div class="lbl">Total Bookings</div></div>
-          <div class="stat"><div class="num" id="bookingsPending">0</div><div class="lbl">Pending</div></div>
-        </div>
-        <div id="bookingsList"></div>
-        <button class="ghost full" onclick="exportBookingsCsv()">⬇ Export CSV</button>
-        <button class="full" onclick="saveBookings()">Save Changes</button>
-        <div class="ok" id="bookingsOk"></div>
-        <div class="err" id="bookingsErr"></div>
-      </div>
-      <div class="card">
-        <h2 style="color:#ff9b9b;">Clear All Bookings</h2>
-        <p class="sub" style="margin:0 0 12px;">Deletes every booking record on this device. This cannot be undone.</p>
-        <button class="danger full" onclick="clearAllBookings()">Delete All Bookings</button>
-        <div class="ok" id="bookingsClearOk"></div>
-      </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="tab-settings" class="hidden">
-      <div class="card">
-        <h2>Change Admin Password</h2>
-        <label>New password (min 6 characters)</label>
-        <input type="password" id="newPassword"/>
-        <button class="full" onclick="changePassword()">Update Password</button>
-        <div class="ok" id="settingsOk"></div>
-        <div class="err" id="settingsErr"></div>
-      </div>
-      <div class="card">
-        <h2 style="color:#ff9b9b;">Danger Zone</h2>
-        <p class="sub" style="margin:0 0 12px;">Resets prices, items, and content back to the defaults built into the site, and clears the visitor counter. This cannot be undone.</p>
-        <button class="danger full" onclick="resetEverything()">Reset Everything to Defaults</button>
-        <div class="ok" id="dangerOk"></div>
-      </div>
-    </div>
-
-  </div>
+  <header id="top" class="top glass hidden">
+    <img src="logo.png" alt="">
+    <div><div class="nm">TEAM EXPLO ERA</div><div class="sb">DASHBOARD</div></div>
+    <div class="sp"></div>
+    <a class="btn sm" id="viewSite" href="./" style="text-decoration:none;color:#fff">View site</a>
+    <button class="btn sm" id="logout" type="button">Sign out</button>
+  </header>
+  <div id="chips" class="chips hidden"></div>
+  <div id="tabs" class="tabs hidden"></div>
+  <main id="app" class="hidden"></main>
 </div>
 
+<div id="savebar" class="savebar hidden"><div class="glass"><span id="saveTxt" style="font-size:13px"></span><button class="btn sm" id="discard" type="button">Discard</button><button class="btn sm pri" id="save" type="button">Save changes</button></div></div>
+
 <script>
-  // --------------------------------------------------------------------
-  // Storage keys — must match the ones app.js reads on the main site.
-  // --------------------------------------------------------------------
-  var PRICES_KEY = 'kc_admin_prices';
-  var CONTENT_KEY = 'kc_admin_content';
-  var VISITOR_KEY = 'kc_visitor_seq';
-  var BOOKINGS_KEY = 'kc_bookings';
-  var BOOKING_STATUSES = ['pending', 'confirmed', 'paid', 'cancelled'];
-  var PASS_HASH_KEY = 'kc_admin_pass_hash';
-  var SESSION_KEY = 'kc_admin_session';
-  var DEFAULT_PASSWORD = 'ChangeMe@2024';
+(function () {
+  'use strict';
+  var API = 'https://teamexploera-backend.book-and-explore.workers.dev';
+  var SITES = [['root', 'Home', ''], ['krem-chympe', 'Krem Chympe', 'krem-chympe/'], ['wilderness-expedition', 'Wilderness', 'wilderness-expedition/']];
+  var TABS = [['fb', '⭐ Feedback'], ['tx', '✏️ Text']];
+  var TKEY = 'kcAdminToken', site = 'root', tab = 'fb', tabIdx = 0, back = false;
+  var base = {}, over = {}, dirty = {}, challenge = null;
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function show(ids, on) { ids.forEach(function (i) { $(i).classList.toggle('hidden', !on); }); }
+  function busy(btn, on) { btn.disabled = on; btn.classList.toggle('busy', on); }
 
-  // Same defaults as index.html's window.KC_PRICES, duplicated here since
-  // this page is opened standalone (no shared build step / bundler).
-  var DEFAULT_THALI_TYPES = [
-    { id: 'veg', name: 'Veg Thali' },
-    { id: 'chicken', name: 'Chicken Thali' },
-    { id: 'pork', name: 'Pork Thali' }
-  ];
-  var DEFAULT_PRICES = {
-    sharedTour: { perPerson: 2600, lunchThaliPrice: 380, thaliTypes: JSON.parse(JSON.stringify(DEFAULT_THALI_TYPES)) },
-    camping: { tentUnit: 1000, mealsPerPerson: 500, overnightGuide: 2000, jeep: 4000, activitiesPerPerson: 1500 },
-    privatePackage: { jeep: 4000, guide: 1500, adventurePerPerson: 1500, lunchThaliPrice: 380, campingTent: 1000, campingMealsPerPerson: 380, overnightGuide: 2000, thaliTypes: JSON.parse(JSON.stringify(DEFAULT_THALI_TYPES)) },
-    childFreeAge: 10,
-    minAdvance: 500
-  };
-  var DEFAULT_BAMBOO_MENU = [
-    { id: 'chicken500', name: 'Fresh Bamboo Chicken (500g)', price: 699 },
-    { id: 'chicken1kg', name: 'Fresh Bamboo Chicken (1kg)', price: 890 },
-    { id: 'pork500', name: 'Fresh Bamboo Pork (500g)', price: 799 },
-    { id: 'pork1kg', name: 'Fresh Bamboo Pork (1kg)', price: 1000 },
-    { id: 'porkbelly500', name: 'Roasted Pork Belly Salad (500g)', price: 599 },
-    { id: 'porkbelly1kg', name: 'Roasted Pork Belly Salad (1kg)', price: 900 },
-    { id: 'fish', name: 'Boiled Fish (Zero Oil)', price: 250 },
-    { id: 'vegsabji', name: 'Veg Bamboo Sabji', price: 300 },
-    { id: 'egg', name: 'Boiled Egg', price: 20 },
-    { id: 'chai', name: 'Bamboo Chai', price: 20 }
-  ];
-  var DEFAULT_CONTENT = {
-    siteName: 'KREM CHYMPE', siteSub: 'ADVENTURE & CAMPING',
-    instagram: '', whatsappNumber: '916001877518', upiId: 'kremchympe@upi',
-    bank: { name: 'Krem Chympe Adventure', account: '123456789012', ifsc: '', bankName: 'SBI, Cherrapunji Branch' }
-  };
+  /* tap ripple everywhere */
+  document.addEventListener('pointerdown', function (e) {
+    var r = el('span', 'kc-ripple'); r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px';
+    r.addEventListener('animationend', function () { r.remove(); }); document.body.appendChild(r);
+    setTimeout(function () { r.remove(); }, 1200);
+  }, { passive: true, capture: true });
 
-  // --------------------------------------------------------------------
-  // Tiny non-cryptographic hash — this is a client-only gate with no
-  // server to verify against, so a lightweight hash (rather than
-  // crypto.subtle, which requires a secure context) keeps this working
-  // even opened over plain http:// or file://. Not real security either
-  // way — see the note on the login screen.
-  // --------------------------------------------------------------------
-  function simpleHash(str) {
-    var h = 5381;
-    for (var i = 0; i < str.length; i++) { h = ((h * 33) ^ str.charCodeAt(i)) >>> 0; }
-    return h.toString(16);
-  }
-
-  function getJSON(key, fallback) {
-    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
-    catch (e) { return fallback; }
-  }
-  function setJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
-
-  // --------------------------------------------------------------------
-  // AUTH
-  // --------------------------------------------------------------------
-  function doLogin() {
-    var password = document.getElementById('loginPassword').value;
-    var storedHash = localStorage.getItem(PASS_HASH_KEY) || simpleHash(DEFAULT_PASSWORD);
-    document.getElementById('loginErr').textContent = '';
-    if (simpleHash(password) === storedHash) {
-      sessionStorage.setItem(SESSION_KEY, '1');
-      showApp();
-    } else {
-      document.getElementById('loginErr').textContent = 'Incorrect password.';
-    }
-  }
-
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
-    document.getElementById('appView').classList.add('hidden');
-    document.getElementById('loginView').classList.remove('hidden');
-  }
-
-  function showApp() {
-    document.getElementById('loginView').classList.add('hidden');
-    document.getElementById('appView').classList.remove('hidden');
-    loadPrices();
-    loadItems();
-    loadContent();
-    loadVisitors();
-    loadBookings();
-  }
-
-  function switchTab(name) {
-    ['prices', 'items', 'content', 'visitors', 'bookings', 'settings'].forEach(function (t) {
-      document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
-    });
-    document.querySelectorAll('.tabs .tab').forEach(function (el) {
-      el.classList.toggle('active', el.getAttribute('data-tab') === name);
+  function toast(msg, bad) { var t = el('div', 'toast' + (bad ? ' bad' : ''), msg); document.body.appendChild(t); setTimeout(function () { t.remove(); }, 3100); }
+  function ask(title, text, okLabel, danger) {
+    return new Promise(function (res) {
+      var ov = el('div', 'ov'), m = el('div', 'modal glass');
+      m.append(el('h3', '', title), el('p', '', text));
+      var a = el('div', 'acts'), no = el('button', 'btn', 'Cancel'), yes = el('button', 'btn ' + (danger ? 'bad' : 'pri'), okLabel);
+      no.type = yes.type = 'button'; a.append(no, yes); m.append(a); ov.append(m); document.body.append(ov);
+      function done(v) { ov.style.transition = 'opacity .2s'; ov.style.opacity = 0; setTimeout(function () { ov.remove(); }, 180); res(v); }
+      no.onclick = function () { done(false); }; yes.onclick = function () { done(true); }; ov.onclick = function (e) { if (e.target === ov) done(false); };
     });
   }
-
-  // --------------------------------------------------------------------
-  // PRICES
-  // --------------------------------------------------------------------
-  var PRICE_PATHS = [
-    ['sharedTour', 'perPerson'], ['sharedTour', 'lunchThaliPrice'],
-    ['camping', 'tentUnit'], ['camping', 'mealsPerPerson'], ['camping', 'overnightGuide'], ['camping', 'jeep'], ['camping', 'activitiesPerPerson'],
-    ['privatePackage', 'jeep'], ['privatePackage', 'guide'], ['privatePackage', 'adventurePerPerson'], ['privatePackage', 'lunchThaliPrice'],
-    ['privatePackage', 'campingTent'], ['privatePackage', 'campingMealsPerPerson'], ['privatePackage', 'overnightGuide']
-  ];
-
-  function currentPrices() {
-    var stored = getJSON(PRICES_KEY, null);
-    var base = JSON.parse(JSON.stringify(DEFAULT_PRICES));
-    base.bambooMenu = JSON.parse(JSON.stringify(DEFAULT_BAMBOO_MENU));
-    if (stored) {
-      ['sharedTour', 'camping', 'privatePackage'].forEach(function (k) { if (stored[k]) Object.assign(base[k], stored[k]); });
-      if (stored.childFreeAge !== undefined) base.childFreeAge = stored.childFreeAge;
-      if (stored.minAdvance !== undefined) base.minAdvance = stored.minAdvance;
-      if (stored.bambooMenu) base.bambooMenu = stored.bambooMenu;
-    }
-    return base;
+  function lightbox(src) {
+    var ov = el('div', 'ov lb'), im = el('img'); im.src = src; im.alt = ''; ov.append(im); document.body.append(ov);
+    ov.onclick = function () { ov.style.opacity = 0; ov.style.transition = 'opacity .18s'; setTimeout(function () { ov.remove(); }, 180); };
   }
 
-  function loadPrices() {
-    var prices = currentPrices();
-    PRICE_PATHS.forEach(function (p) {
-      var el = document.getElementById('p_' + p[0] + '_' + p[1]);
-      if (el) el.value = prices[p[0]][p[1]];
-    });
-    document.getElementById('p_childFreeAge').value = prices.childFreeAge;
-    document.getElementById('p_minAdvance').value = prices.minAdvance;
-  }
-
-  function savePrices() {
-    document.getElementById('pricesOk').textContent = '';
-    document.getElementById('pricesErr').textContent = '';
-    try {
-      var prices = currentPrices();
-      PRICE_PATHS.forEach(function (p) {
-        var el = document.getElementById('p_' + p[0] + '_' + p[1]);
-        if (el) prices[p[0]][p[1]] = Number(el.value);
+  /* server */
+  function token() { try { return sessionStorage.getItem(TKEY); } catch (e) { return null; } }
+  function setToken(t) { try { if (t) sessionStorage.setItem(TKEY, t); else sessionStorage.removeItem(TKEY); } catch (e) {} }
+  function api(method, path, body) {
+    var o = { method: method, headers: {} };
+    if (token()) o.headers.Authorization = 'Bearer ' + token();
+    if (body !== undefined) { o.headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(body); }
+    return fetch(API + path, o).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (r.status === 401 && token()) signedOut('Your session ended. Please sign in again.');
+        if (!r.ok || j.ok === false) { var e = new Error(j.error || 'Something went wrong (' + r.status + ').'); e.status = r.status; throw e; }
+        return j;
       });
-      prices.childFreeAge = Number(document.getElementById('p_childFreeAge').value);
-      prices.minAdvance = Number(document.getElementById('p_minAdvance').value);
-      setJSON(PRICES_KEY, prices);
-      document.getElementById('pricesOk').textContent = 'Saved — live on the site immediately (same browser).';
-    } catch (e) { document.getElementById('pricesErr').textContent = e.message; }
+    }, function () { throw new Error('Could not reach the server. Check your internet.'); });
   }
 
-  // --------------------------------------------------------------------
-  // ITEMS (bamboo menu + thali types)
-  // --------------------------------------------------------------------
-  var bambooMenu = [];
-  var thaliTypes = [];
+  /* sign in / out */
+  function signedOut(msg) {
+    setToken(null); challenge = null; dirty = {}; show(['top', 'chips', 'tabs', 'app', 'savebar'], false);
+    var l = $('login'); show(['login'], true); show(['stepPw'], true); show(['stepCode'], false);
+    $('pw').value = ''; $('code').value = ''; $('loginErr').textContent = msg || ''; $('loginBtn').textContent = 'Sign in';
+    l.style.animation = 'none'; void l.offsetWidth; l.style.animation = '';
+  }
+  $('login').addEventListener('submit', function (ev) {
+    ev.preventDefault(); var btn = $('loginBtn'); busy(btn, true); $('loginErr').textContent = '';
+    var p = challenge ? api('POST', '/api/cms/verify', { challenge: challenge, code: $('code').value.trim() })
+                      : api('POST', '/api/cms/login', { password: $('pw').value });
+    p.then(function (j) {
+      if (j.step === 'code') { challenge = j.challenge; show(['stepPw'], false); show(['stepCode'], true); btn.textContent = 'Verify'; $('code').focus(); $('loginErr').textContent = 'A 6-digit code was sent to your Telegram admin chat.'; return; }
+      setToken(j.token); start();
+    }).catch(function (e) {
+      $('loginErr').textContent = e.message; var l = $('login'); l.classList.remove('shake'); void l.offsetWidth; l.classList.add('shake');
+      if (challenge && /expired|Start again/i.test(e.message)) signedOut(e.message);
+    }).then(function () { busy(btn, false); });
+  });
+  $('logout').onclick = function () {
+    ask('Sign out everywhere?', 'Every open dashboard session will end.', 'Sign out').then(function (ok) {
+      if (ok) api('POST', '/api/cms/logout').catch(function () {}).then(function () { signedOut('Signed out.'); });
+    });
+  };
 
-  function slugify(name) {
-    return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '') || ('item' + Date.now());
+  /* shell */
+  function start() {
+    show(['login'], false); show(['top', 'chips', 'tabs', 'app'], true);
+    var c = $('chips'); c.textContent = '';
+    SITES.forEach(function (s) { var b = el('button', 'chip' + (s[0] === site ? ' on' : ''), s[1]); b.type = 'button'; b.onclick = function () { pickSite(s[0], b); }; c.append(b); });
+    var t = $('tabs'); t.textContent = '';
+    TABS.forEach(function (x, i) { var b = el('button', 'tab' + (x[0] === tab ? ' on' : ''), x[1]); b.type = 'button'; b.onclick = function () { pickTab(x[0], i, b); }; t.append(b); });
+    render();
+  }
+  function guard() { return Object.keys(dirty).length ? ask('Discard unsaved changes?', 'You have edits that are not saved yet.', 'Discard', true) : Promise.resolve(true); }
+  function pickSite(id, btn) {
+    if (id === site) return;
+    guard().then(function (ok) {
+      if (!ok) return; dirty = {}; site = id;
+      [].forEach.call($('chips').children, function (c) { c.classList.toggle('on', c === btn); });
+      $('viewSite').href = './' + SITES.filter(function (s) { return s[0] === id; })[0][2]; render();
+    });
+  }
+  function pickTab(id, idx, btn) {
+    if (id === tab) return;
+    guard().then(function (ok) {
+      if (!ok) return; dirty = {}; back = idx < tabIdx; tab = id; tabIdx = idx;
+      [].forEach.call($('tabs').children, function (c) { c.classList.toggle('on', c === btn); }); render();
+    });
+  }
+  function render() {
+    updateBar(); var app = $('app'); app.textContent = '';
+    var p = el('div', 'panel' + (back ? ' back' : '')); app.append(p); back = false;
+    for (var i = 0; i < 3; i++) p.append(el('div', 'skel glass'));
+    (tab === 'fb' ? loadFeedback : loadText)(p);
   }
 
-  function loadItems() {
-    var prices = currentPrices();
-    bambooMenu = prices.bambooMenu || JSON.parse(JSON.stringify(DEFAULT_BAMBOO_MENU));
-    thaliTypes = (prices.sharedTour && prices.sharedTour.thaliTypes) || JSON.parse(JSON.stringify(DEFAULT_THALI_TYPES));
-    renderBamboo();
-    renderThali();
+  /* feedback */
+  function loadFeedback(p) {
+    var mine = site;
+    api('GET', '/api/cms/feedback?site=' + encodeURIComponent(site)).then(function (j) {
+      if (mine !== site || tab !== 'fb') return; p.textContent = '';
+      var list = (j.feedback || []).slice().sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.ts || 0) - (a.ts || 0); });
+      if (!list.length) { p.append(el('div', 'empty glass card', 'No feedback yet. New ratings show up here.')); return; }
+      var head = el('div', 'meta', list.length + ' rating' + (list.length === 1 ? '' : 's')); head.style.margin = '2px 6px 10px'; p.append(head);
+      list.forEach(function (r, i) { p.append(fbCard(r, i)); });
+    }).catch(function (e) { p.textContent = ''; p.append(el('div', 'empty glass card', e.message)); });
   }
-
-  function renderBamboo() {
-    var el = document.getElementById('bambooList');
-    el.innerHTML = bambooMenu.map(function (item, i) {
-      return '<div class="item-row">' +
-        '<input type="text" value="' + escapeAttr(item.name) + '" oninput="bambooMenu[' + i + '].name=this.value">' +
-        '<input type="number" class="price" value="' + item.price + '" oninput="bambooMenu[' + i + '].price=Number(this.value)">' +
-        '<button class="danger small" onclick="removeBambooItem(' + i + ')">✕</button>' +
-        '</div>';
-    }).join('') || '<p class="sub" style="margin:0;">No items yet.</p>';
-  }
-
-  function renderThali() {
-    var el = document.getElementById('thaliList');
-    el.innerHTML = thaliTypes.map(function (item, i) {
-      return '<div class="item-row">' +
-        '<input type="text" value="' + escapeAttr(item.name) + '" oninput="thaliTypes[' + i + '].name=this.value">' +
-        '<button class="danger small" onclick="removeThaliItem(' + i + ')">✕</button>' +
-        '</div>';
-    }).join('') || '<p class="sub" style="margin:0;">No thali types yet.</p>';
-  }
-
-  function addBambooItem() { bambooMenu.push({ id: 'item' + Date.now(), name: 'New Item', price: 0 }); renderBamboo(); }
-  function removeBambooItem(i) { bambooMenu.splice(i, 1); renderBamboo(); }
-  function addThaliItem() { thaliTypes.push({ id: 'thali' + Date.now(), name: 'New Thali' }); renderThali(); }
-  function removeThaliItem(i) { thaliTypes.splice(i, 1); renderThali(); }
-
-  function escapeAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-
-  function saveItems() {
-    document.getElementById('itemsOk').textContent = '';
-    document.getElementById('itemsErr').textContent = '';
-    try {
-      bambooMenu.forEach(function (item) { item.id = item.id || slugify(item.name); });
-      thaliTypes.forEach(function (item) { item.id = item.id || slugify(item.name); });
-      var prices = currentPrices();
-      prices.bambooMenu = bambooMenu;
-      // Same thali list is shared by both packages that offer lunch thalis.
-      prices.sharedTour.thaliTypes = thaliTypes;
-      prices.privatePackage.thaliTypes = thaliTypes;
-      setJSON(PRICES_KEY, prices);
-      document.getElementById('itemsOk').textContent = 'Saved — live on the site immediately (same browser).';
-    } catch (e) { document.getElementById('itemsErr').textContent = e.message; }
-  }
-
-  // --------------------------------------------------------------------
-  // CONTENT
-  // --------------------------------------------------------------------
-  function currentContent() {
-    var stored = getJSON(CONTENT_KEY, null);
-    var base = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
-    if (stored) {
-      Object.assign(base, stored);
-      if (stored.bank) Object.assign(base.bank, stored.bank);
+  function fbCard(r, i) {
+    var c = el('div', 'card glass' + (r.hidden ? ' hid' : '')); c.style.setProperty('--i', Math.min(i, 12));
+    var top = el('div', 'row'), left = el('div'); left.append(el('span', 'nm2', r.name || 'Anonymous visitor'));
+    if (r.pinned) left.append(el('span', 'pin', '📌 pinned'));
+    if (r.hidden) left.append(el('span', 'pin', 'hidden'));
+    var n = Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0)));
+    top.append(left, el('span', 'stars', '★'.repeat(n) + '☆'.repeat(5 - n))); c.append(top);
+    c.append(el('div', 'meta', r.ts ? new Date(r.ts).toLocaleString() : ''));
+    var urls = (r.photoUrls || []).slice(0, 3);
+    if (urls.length) {
+      var d = el('div', 'dots');
+      urls.forEach(function (u) { var b = el('button', 'dot'); b.type = 'button'; var im = el('img'); im.src = u; im.alt = ''; im.loading = 'lazy'; b.append(im); b.onclick = function () { lightbox(u); }; d.append(b); });
+      c.append(d);
     }
-    return base;
-  }
-
-  function loadContent() {
-    var c = currentContent();
-    document.getElementById('c_siteName').value = c.siteName;
-    document.getElementById('c_siteSub').value = c.siteSub;
-    document.getElementById('c_instagram').value = c.instagram;
-    document.getElementById('c_whatsapp').value = c.whatsappNumber;
-    document.getElementById('c_upiId').value = c.upiId;
-    document.getElementById('c_bankName').value = c.bank.name;
-    document.getElementById('c_bankAccount').value = c.bank.account;
-    document.getElementById('c_bankIfsc').value = c.bank.ifsc;
-    document.getElementById('c_bankBankName').value = c.bank.bankName;
-  }
-
-  function saveContent() {
-    document.getElementById('contentOk').textContent = '';
-    document.getElementById('contentErr').textContent = '';
-    try {
-      var c = {
-        siteName: document.getElementById('c_siteName').value,
-        siteSub: document.getElementById('c_siteSub').value,
-        instagram: document.getElementById('c_instagram').value,
-        whatsappNumber: document.getElementById('c_whatsapp').value.replace(/[^0-9]/g, ''),
-        upiId: document.getElementById('c_upiId').value,
-        bank: {
-          name: document.getElementById('c_bankName').value,
-          account: document.getElementById('c_bankAccount').value,
-          ifsc: document.getElementById('c_bankIfsc').value,
-          bankName: document.getElementById('c_bankBankName').value
-        }
-      };
-      setJSON(CONTENT_KEY, c);
-      document.getElementById('contentOk').textContent = 'Saved — live on the site immediately (same browser).';
-    } catch (e) { document.getElementById('contentErr').textContent = e.message; }
-  }
-
-  // --------------------------------------------------------------------
-  // VISITORS
-  // --------------------------------------------------------------------
-  function loadVisitors() {
-    var n = parseInt(localStorage.getItem(VISITOR_KEY), 10) || 0;
-    document.getElementById('visitorCount').textContent = String(n).padStart(4, '0');
-  }
-  function resetVisitorCount() {
-    if (!confirm('Reset the visitor counter to 0000?')) return;
-    localStorage.setItem(VISITOR_KEY, '0');
-    loadVisitors();
-  }
-
-  // --------------------------------------------------------------------
-  // BOOKINGS — records are written by app.js (submitBookingViaWhatsApp,
-  // key kc_bookings) whenever a visitor submits a booking on this device.
-  // Full CRUD here: edit any field or the status, delete one, clear all,
-  // or export everything currently loaded as a CSV file.
-  // --------------------------------------------------------------------
-  var bookings = [];
-
-  function loadBookings() {
-    bookings = getJSON(BOOKINGS_KEY, []);
-    renderBookings();
-  }
-
-  function renderBookings() {
-    var el = document.getElementById('bookingsList');
-    document.getElementById('bookingsTotal').textContent = bookings.length;
-    document.getElementById('bookingsPending').textContent = bookings.filter(function (b) { return b.status === 'pending'; }).length;
-    if (!bookings.length) {
-      el.innerHTML = '<p class="sub" style="margin:0;">No bookings yet.</p>';
-      return;
+    if (r.comment) c.append(el('p', 'cm', r.comment));
+    var a = el('div', 'acts'), q = '?site=' + encodeURIComponent(site);
+    function act(label, cls, fn) {
+      var b = el('button', 'btn sm ' + cls, label); b.type = 'button';
+      b.onclick = function () { busy(b, true); Promise.resolve().then(fn).catch(function (e) { toast(e.message, true); }).then(function () { busy(b, false); }); };
+      a.append(b);
     }
-    // Newest first.
-    var order = bookings.map(function (b, i) { return i; })
-      .sort(function (a, b) { return (bookings[b].createdAt || '').localeCompare(bookings[a].createdAt || ''); });
-    el.innerHTML = order.map(function (i) {
-      var b = bookings[i];
-      return '<div class="card" style="padding:14px;margin-bottom:10px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
-          '<b style="font-family:ui-monospace,Menlo,Consolas,monospace;">#' + escapeAttr(b.code || '----') + '</b>' +
-          '<select onchange="bookings[' + i + '].status=this.value" style="width:auto;padding:6px 10px;font-size:12px;">' +
-            BOOKING_STATUSES.map(function (s) { return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
-          '</select>' +
-        '</div>' +
-        '<label style="margin-top:10px;">Name</label><input type="text" value="' + escapeAttr(b.name) + '" oninput="bookings[' + i + '].name=this.value">' +
-        '<label>WhatsApp</label><input type="text" value="' + escapeAttr(b.whatsapp) + '" oninput="bookings[' + i + '].whatsapp=this.value">' +
-        '<label>Date</label><input type="text" value="' + escapeAttr(b.date) + '" oninput="bookings[' + i + '].date=this.value">' +
-        '<div style="font-size:12px;opacity:0.65;margin-top:10px;line-height:1.6;">' +
-          escapeAttr(b.package || '-') + (b.people ? ' · ' + b.people + ' people' : '') + '<br>' +
-          'Total ₹' + Number(b.total || 0).toLocaleString('en-IN') +
-          ' · Advance ₹' + Number(b.advance || 0).toLocaleString('en-IN') +
-          ' · Balance ₹' + Number(b.balance || 0).toLocaleString('en-IN') +
-        '</div>' +
-        '<button class="danger small" style="margin-top:10px;" onclick="deleteBooking(' + i + ')">Delete</button>' +
-      '</div>';
-    }).join('');
+    function post(action, msg) { return api('POST', '/api/cms/feedback/' + r.id + q, { action: action }).then(function () { toast(msg); var p = $('app').firstChild; if (p && tab === 'fb') loadFeedback(p); }); }
+    act(r.pinned ? 'Unpin' : '📌 Pin to top', '', function () { return post(r.pinned ? 'unpin' : 'pin', r.pinned ? 'Unpinned' : 'Pinned to the top'); });
+    act(r.hidden ? 'Show' : 'Hide', '', function () { return post(r.hidden ? 'show' : 'hide', r.hidden ? 'Visible again' : 'Hidden from visitors'); });
+    act('Delete', 'bad', function () {
+      return ask('Delete this feedback?', 'It and its photos are removed for good.', 'Delete', true).then(function (ok) {
+        if (!ok) return;
+        return api('DELETE', '/api/cms/feedback/' + r.id + q).then(function () { c.classList.add('out'); toast('Deleted'); setTimeout(function () { c.remove(); }, 380); });
+      });
+    });
+    c.append(a); return c;
   }
 
-  function deleteBooking(i) {
-    if (!confirm('Delete this booking record? This cannot be undone.')) return;
-    bookings.splice(i, 1);
-    setJSON(BOOKINGS_KEY, bookings);
-    renderBookings();
+  /* text */
+  var SEG = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/, BLOCK = { backend: 1, admin: 1 };
+  function leaves(obj, path, out, depth) {
+    if (depth > 6 || !obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+    Object.keys(obj).forEach(function (k) {
+      if (!SEG.test(k) || (depth === 0 && BLOCK[k])) return;
+      var v = obj[k], pth = path ? path + '.' + k : k;
+      if (typeof v === 'string') { if (path && v.length <= 4000) out.push([pth, v]); } else leaves(v, pth, out, depth + 1);
+    });
   }
-
-  function saveBookings() {
-    document.getElementById('bookingsOk').textContent = '';
-    document.getElementById('bookingsErr').textContent = '';
-    try {
-      setJSON(BOOKINGS_KEY, bookings);
-      document.getElementById('bookingsOk').textContent = 'Saved.';
-    } catch (e) { document.getElementById('bookingsErr').textContent = e.message; }
+  function getAt(o, pth) { return pth.split('.').reduce(function (a, k) { return a && typeof a === 'object' ? a[k] : undefined; }, o); }
+  function loadBase(s) {
+    return new Promise(function (res) {
+      var prefix = SITES.filter(function (x) { return x[0] === s; })[0][2];
+      var sc = document.createElement('script'); window.KC_CONTENT = undefined;
+      sc.src = prefix + 'config.js?_=' + Date.now();
+      sc.onload = function () { var c = window.KC_CONTENT; sc.remove(); res(c || {}); };
+      sc.onerror = function () { sc.remove(); res({}); };
+      document.head.append(sc);
+    });
   }
-
-  function clearAllBookings() {
-    if (!confirm('Delete ALL booking records on this device? This cannot be undone.')) return;
-    bookings = [];
-    localStorage.removeItem(BOOKINGS_KEY);
-    renderBookings();
-    document.getElementById('bookingsClearOk').textContent = 'All bookings deleted.';
+  function cur(pth) { if (dirty.hasOwnProperty(pth)) return dirty[pth] === null ? (getAt(base, pth) || '') : dirty[pth]; var o = getAt(over, pth); if (o != null) return o; var b = getAt(base, pth); return b != null ? b : ''; }
+  function loadText(p) {
+    var mine = site;
+    Promise.all([loadBase(site), api('GET', '/api/cms/a/content?site=' + encodeURIComponent(site))]).then(function (r) {
+      if (mine !== site || tab !== 'tx') return;
+      base = r[0]; over = r[1].content || {}; dirty = {}; p.textContent = '';
+      var all = []; leaves(base, '', all, 0); leaves(over, '', all, 0);
+      var seen = {}; all = all.filter(function (x) { return seen[x[0]] ? false : (seen[x[0]] = 1); });
+      if (!all.length) { p.append(el('div', 'empty glass card', 'No editable text found for this page.')); return; }
+      var s = el('input', 'search'); s.type = 'search'; s.placeholder = 'Search text…'; p.append(s);
+      var groups = {}; all.forEach(function (x) { var g = x[0].split('.')[0]; (groups[g] = groups[g] || []).push(x[0]); });
+      var box = el('div'); p.append(box);
+      function draw() {
+        var q = s.value.trim().toLowerCase(); box.textContent = ''; var i = 0;
+        Object.keys(groups).forEach(function (g) {
+          var paths = groups[g].filter(function (pth) { return !q || pth.toLowerCase().indexOf(q) > -1 || String(cur(pth)).toLowerCase().indexOf(q) > -1; });
+          if (!paths.length) return;
+          var sec = el('div', 'sec glass' + (q ? ' open' : '')); sec.style.setProperty('--i', Math.min(i++, 12));
+          var hd = el('button'); hd.type = 'button';
+          var lt = el('span', '', g.replace(/([A-Z])/g, ' $1').replace(/^./, function (c) { return c.toUpperCase(); })); lt.append(el('span', 'ct', String(paths.length)));
+          hd.append(lt, el('span', 'ar', '▾')); var body = el('div', 'body'); sec.append(hd, body);
+          function fill() { if (body.childNodes.length) return; paths.forEach(function (pth) { body.append(field(pth)); }); }
+          hd.onclick = function () { fill(); sec.classList.toggle('open'); }; if (q) fill();
+          box.append(sec);
+        });
+        if (!box.childNodes.length) box.append(el('div', 'empty', 'Nothing matches.'));
+      }
+      var tm; s.oninput = function () { clearTimeout(tm); tm = setTimeout(draw, 160); }; draw();
+    }).catch(function (e) { p.textContent = ''; p.append(el('div', 'empty glass card', e.message)); });
   }
-
-  function exportBookingsCsv() {
-    if (!bookings.length) { alert('No bookings to export.'); return; }
-    var cols = ['code', 'createdAt', 'status', 'name', 'whatsapp', 'date', 'package', 'people', 'total', 'advance', 'balance'];
-    var rows = [cols.join(',')].concat(bookings.map(function (b) {
-      return cols.map(function (c) {
-        var v = b[c] == null ? '' : String(b[c]);
-        if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1) v = '"' + v.replace(/"/g, '""') + '"';
-        return v;
-      }).join(',');
-    }));
-    var blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'krem-chympe-bookings.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+  function field(pth) {
+    var f = el('div', 'fld'), lb = el('label'); lb.append(el('span', '', pth));
+    var orig = getAt(base, pth), v = String(cur(pth));
+    var inp = (v.length > 70 || v.indexOf('\n') > -1) ? el('textarea') : el('input'); inp.value = v;
+    if (inp.tagName === 'TEXTAREA') inp.rows = Math.min(8, Math.max(2, Math.ceil(v.length / 48)));
+    var rst = el('button', 'rst', 'Original'); rst.type = 'button';
+    function mark() { f.classList.toggle('mod', dirty.hasOwnProperty(pth)); rst.style.display = (dirty.hasOwnProperty(pth) || getAt(over, pth) != null) ? '' : 'none'; }
+    inp.oninput = function () {
+      var saved = getAt(over, pth) != null ? getAt(over, pth) : (orig != null ? orig : '');
+      if (inp.value === String(saved)) delete dirty[pth]; else dirty[pth] = inp.value; mark(); updateBar();
+    };
+    rst.onclick = function () { if (getAt(over, pth) != null) dirty[pth] = null; else delete dirty[pth]; inp.value = orig != null ? orig : ''; mark(); updateBar(); };
+    lb.append(rst); f.append(lb, inp); mark(); return f;
   }
+  function updateBar() { var n = Object.keys(dirty).length; show(['savebar'], n > 0 && tab === 'tx'); $('saveTxt').textContent = n + ' change' + (n === 1 ? '' : 's'); }
+  $('discard').onclick = function () { dirty = {}; render(); };
+  $('save').onclick = function () {
+    var set = {}, unset = [], b = $('save');
+    Object.keys(dirty).forEach(function (k) { if (dirty[k] === null) unset.push(k); else set[k] = dirty[k]; });
+    busy(b, true);
+    api('PUT', '/api/cms/a/content?site=' + encodeURIComponent(site), { set: set, unset: unset }).then(function () {
+      dirty = {}; toast('Saved ✓ — live for visitors in about 30 seconds'); render();
+    }).catch(function (e) { toast(e.message, true); }).then(function () { busy(b, false); });
+  };
+  window.addEventListener('beforeunload', function (e) { if (Object.keys(dirty).length) { e.preventDefault(); e.returnValue = ''; } });
 
-  // --------------------------------------------------------------------
-  // SETTINGS
-  // --------------------------------------------------------------------
-  function changePassword() {
-    document.getElementById('settingsOk').textContent = '';
-    document.getElementById('settingsErr').textContent = '';
-    var newPassword = document.getElementById('newPassword').value;
-    if (!newPassword || newPassword.length < 6) {
-      document.getElementById('settingsErr').textContent = 'Password must be at least 6 characters.';
-      return;
-    }
-    localStorage.setItem(PASS_HASH_KEY, simpleHash(newPassword));
-    document.getElementById('settingsOk').textContent = 'Password updated.';
-    document.getElementById('newPassword').value = '';
-  }
-
-  function resetEverything() {
-    if (!confirm('Reset ALL prices, items, content, the visitor counter, and bookings back to defaults? This cannot be undone.')) return;
-    if (!confirm('Are you absolutely sure? This applies immediately on this device.')) return;
-    localStorage.removeItem(PRICES_KEY);
-    localStorage.removeItem(CONTENT_KEY);
-    localStorage.removeItem(VISITOR_KEY);
-    localStorage.removeItem(BOOKINGS_KEY);
-    document.getElementById('dangerOk').textContent = 'Everything reset to defaults.';
-    loadPrices(); loadItems(); loadContent(); loadVisitors(); loadBookings();
-  }
-
-  // Boot — stay logged in for this browser tab/session only (closing the
-  // tab logs out), same spirit as the old JWT token but with no server to
-  // issue or verify one.
-  if (sessionStorage.getItem(SESSION_KEY)) { showApp(); }
+  if (token()) api('GET', '/api/cms/me').then(start).catch(function () { signedOut(''); }); else signedOut('');
+  var v = $('bgv'); if (v && v.play) v.play().catch(function () {});
+})();
 </script>
 </body>
 </html>
